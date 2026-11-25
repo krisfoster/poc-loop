@@ -1,0 +1,6 @@
+# Spell check config for typos (https://github.com/crate-ci/typos). Copied to _typos.toml.
+[files]
+extend-exclude = ["*.lock", "node_modules", "dist", "build", "*.svg", "*.min.js"]
+
+[default.extend-words]
+# Intentional words that look like typos go here, one per line, as: word = "word"

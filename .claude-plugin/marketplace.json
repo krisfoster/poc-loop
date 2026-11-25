@@ -1,0 +1,14 @@
+{
+  "name": "spike-loop",
+  "owner": {
+    "name": "Kris Foster"
+  },
+  "description": "The Spike Loop PoC workflow for Claude Code.",
+  "plugins": [
+    {
+      "name": "spike-loop",
+      "source": "./",
+      "description": "PoC workflow skills and read-only subagents: start, log, checkpoint, verify, review, debug, research, package, harden, plus first-use setup of internal research sources."
+    }
+  ]
+}

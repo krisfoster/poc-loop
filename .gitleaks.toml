@@ -1,0 +1,10 @@
+# Secret scan config for gitleaks. Copied to .gitleaks.toml.
+title = "repo constitution"
+
+[extend]
+useDefault = true
+
+# Allow a false positive narrowly, and say why. Never allowlist a real secret: rotate it instead.
+# [[allowlists]]
+# description = "why this is safe"
+# paths = ['''docs/example\.md''']

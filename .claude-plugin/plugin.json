@@ -1,0 +1,18 @@
+{
+  "name": "spike-loop",
+  "description": "A small PoC workflow for Claude Code: write down the question and the success check, build in a timeboxed loop, verify and review with cheap isolated subagents, then package for handoff. Includes a first-use setup for the internal document sources the researcher may read.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Kris Foster"
+  },
+  "license": "MIT",
+  "agents": [
+    "./agents/verifier.md",
+    "./agents/reviewer.md",
+    "./agents/reviewer-lite.md",
+    "./agents/debugger.md",
+    "./agents/researcher.md",
+    "./agents/packager.md",
+    "./agents/implementer.md"
+  ]
+}

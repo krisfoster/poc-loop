@@ -1,0 +1,14 @@
+# --- repo constitution ---
+.env
+.env.*
+!.env.example
+.direnv/
+*.pem
+*.p12
+*.pfx
+*.kdbx
+
+.DS_Store
+__pycache__/
+*.pyc
+.venv/

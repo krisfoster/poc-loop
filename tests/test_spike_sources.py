@@ -199,6 +199,13 @@ class RepoLintTest(unittest.TestCase):
         for rel in plugin.get("agents", []):
             self.assertTrue(os.path.isfile(os.path.join(ROOT, rel)), rel)
 
+    def test_plugin_has_version_and_readme_has_no_placeholder(self):
+        import json
+        with open(os.path.join(ROOT, ".claude-plugin", "plugin.json")) as fh:
+            self.assertRegex(json.load(fh)["version"], r"^\d+\.\d+\.\d+$")
+        self.assertNotIn("OWNER", open(os.path.join(ROOT, "README.md")).read())
+        self.assertTrue(os.path.isfile(os.path.join(ROOT, ".claude-plugin", "icon.png")))
+
 
 if __name__ == "__main__":
     unittest.main()

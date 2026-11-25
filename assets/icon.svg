@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#0b1120"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <!-- the loop: a clockwise ring with a gap at the top and an arrowhead closing it -->
+  <path d="M 724.1 259.2 A 330 330 0 1 1 454.7 187.0" fill="none" stroke="#38bdf8" stroke-width="56" stroke-linecap="butt"/>
+  <polygon points="467.8,260.9 441.7,113.1 533.5,173.1" fill="#38bdf8"/>
+  <!-- the spike: a flat line, one sharp peak, one trough -->
+  <polyline points="330,560 430,560 500,340 570,700 620,560 694,560" fill="none" stroke="#fbbf24" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

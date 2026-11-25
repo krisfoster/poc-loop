@@ -20,7 +20,7 @@ Status: 0.1.0, early. The measurements are one run per variant on one small task
 | `/spike-loop:poc-harden` | Review, then package, then final gate. Lean path for small PoCs, full path with `full` |
 | `/spike-loop:poc-checkpoint` | End-of-session summary, and `SUMMARY.md` on stop or harden |
 
-Seven subagents back these (`verifier`, `reviewer`, `reviewer-lite`, `debugger`, `researcher`, `packager`, `implementer`). The research ones are read-only. See [docs/workflow.md](docs/workflow.md) for how the pieces fit.
+Seven subagents back these (`verifier`, `reviewer`, `reviewer-lite`, `debugger`, `researcher`, `packager`, `implementer`). The research and review ones cannot edit files or write to a connector. They do keep `Bash` and web access, so their read-only rule is a prompt rule, not a sandbox: do not point them at untrusted content you would not paste into a chat. See [docs/workflow.md](docs/workflow.md) for how the pieces fit.
 
 ## Install
 

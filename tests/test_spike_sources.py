@@ -58,6 +58,12 @@ class BucketTest(unittest.TestCase):
         self.assertEqual(ss.bucket("get_and_delete_thing"), "write")
         self.assertEqual(ss.bucket("search_then_send"), "write")
 
+    def test_compound_names_with_a_write_verb_are_write(self):
+        for n in ["search_and_replace", "fetch_and_push", "read_and_save", "get_and_append",
+                  "list_then_edit", "query_insert", "edit_page", "submit_form", "import_data",
+                  "attach_file", "tag_item", "modify-record"]:
+            self.assertEqual(ss.bucket(n), "write", n)
+
     def test_split_tool(self):
         self.assertEqual(ss.split_tool("mcp__abc-1__get_x"), ("abc-1", "get_x"))
         self.assertEqual(ss.split_tool("Read"), ("(unknown)", "Read"))
@@ -119,6 +125,21 @@ class AgentTest(unittest.TestCase):
         self.assertEqual(self.run_render(READ_TOOLS[:1]), 0)
         self.assertNotIn(READ_TOOLS[1], open(self.out).read())
 
+    def test_refuses_base_without_tools_line(self):
+        with open(self.base, "w") as f:
+            f.write("---\nname: researcher\ndescription: base\n---\nBody.\n")
+        self.assertEqual(self.run_render(READ_TOOLS[:1]), 2)
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_init_sources_accepts_bare_relative_filename(self):
+        cwd = os.getcwd()
+        os.chdir(self.d)
+        try:
+            self.assertEqual(ss.main(["init-sources", "--out", "notes.md"]), 0)
+        finally:
+            os.chdir(cwd)
+        self.assertTrue(os.path.exists(os.path.join(self.d, "notes.md")))
+
     def test_review_tools_allowed_when_user_approves_them(self):
         self.assertEqual(self.run_render([REVIEW_TOOLS[1]]), 0)
 
@@ -155,6 +176,28 @@ class AgentTest(unittest.TestCase):
         o = buf.getvalue()
         self.assertIn("no longer visible (1): notion-search", o)
         self.assertIn("new read-class tools (1): notion-get-self", o)
+
+
+class RepoLintTest(unittest.TestCase):
+    def test_skill_names_match_folders_and_have_no_em_dash(self):
+        import re
+        skills = os.path.join(ROOT, "skills")
+        for d in sorted(os.listdir(skills)):
+            f = os.path.join(skills, d, "SKILL.md")
+            if not os.path.isfile(f):
+                continue
+            text = open(f).read()
+            m = re.search(r"^name: (.+)$", text, re.M)
+            self.assertIsNotNone(m, f)
+            self.assertEqual(m.group(1).strip(), d, f)
+            self.assertNotIn("\u2014", text, f)
+
+    def test_plugin_json_agent_paths_exist(self):
+        import json
+        with open(os.path.join(ROOT, ".claude-plugin", "plugin.json")) as fh:
+            plugin = json.load(fh)
+        for rel in plugin.get("agents", []):
+            self.assertTrue(os.path.isfile(os.path.join(ROOT, rel)), rel)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ argument-hint: "[iterate | pivot | harden | stop]"
 Outcome from the user: "$ARGUMENTS". Never use em dashes.
 
 1. Read `POC.md` and the last 60 lines of `LOG.md`. If missing, say to run `/poc-start` and stop. If the last log entry is older than this session's work, run the `/poc-log` steps first (draft, show, append).
-2. Print a summary of at most 12 lines: the question; what is now established, with the evidence (command and result), not claims; assumptions still unproven; open question for the next session; elapsed against timebox.
+2. Print a summary of at most 12 lines: the question; what is now established, with the evidence (command and result), not claims; assumptions still unproven; open question for the next session; elapsed wall-clock time against timebox (if `Started:` has no time, measure from the first `LOG.md` entry).
 3. Outcome: if "$ARGUMENTS" is empty, recommend one of iterate, pivot, harden or stop with a one-line reason, and ask the user to confirm. Record the confirmed outcome in `LOG.md` as a new entry whose Decision line names it.
 4. Iterate or pivot: end with the fresh-session instruction (`/clear`, then say what to start with). Pivot also means edit `POC.md` assumptions after the user agrees.
 5. Harden: tell the user `/poc-harden` is next.

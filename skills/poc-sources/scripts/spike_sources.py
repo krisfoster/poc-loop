@@ -11,7 +11,7 @@ Standard library only, Python 3.9+. Subcommands:
                     researcher agent plus the approved tools. Refuses write-class tools and
                     refuses to overwrite an agent file it did not generate.
   status            compare the approved tools in the generated agent with the tool names
-                    visible now (stdin or --file): which are gone, which new read tools exist.
+                    visible now (--file only, never reads stdin): which are gone, which new read tools exist.
 
 Exit codes: 0 ok, 1 usage or input problem, 2 refused for safety.
 """
@@ -36,6 +36,9 @@ WRITE = {
     "schedule", "approve", "reconnect", "convert", "complete", "request", "generate",
     "spawn", "start", "stop", "pin", "unpin", "clear", "clean", "discard", "merge",
     "assign", "install", "uninstall", "enable", "disable", "reset", "kill", "drop",
+    "edit", "append", "prepend", "insert", "replace", "save", "push", "submit", "import",
+    "attach", "detach", "tag", "untag", "store", "modify", "patch", "put", "overwrite",
+    "truncate", "purge", "grant", "ungrant", "transfer",
 }
 # Generic dispatchers and executors: they may do anything, so a human must look.
 REVIEW_FORCE = {"run", "execute", "exec", "invoke", "call", "eval", "code", "shell", "bash", "download", "export"}
@@ -153,7 +156,7 @@ def cmd_init_sources(a):
     if os.path.exists(path):
         print("exists, left unchanged: " + path)
         return 0
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w") as f:
         f.write(SOURCES_TEMPLATE.format(today=datetime.date.today().isoformat()))
     os.chmod(path, 0o600)
@@ -191,6 +194,9 @@ def cmd_render_agent(a):
         print("base agent has no frontmatter: " + base_path, file=sys.stderr)
         return 1
     front, body = m.group(1), m.group(2)
+    if not re.search(r"^tools: ", front, re.M):
+        print("base agent has no `tools:` line, refusing to generate an agent that would inherit every tool: " + base_path, file=sys.stderr)
+        return 2
     body = body.replace("You have no write tools and no connector tools.", "You have no write tools. Your connector tools are read-only.")
     tools = ", ".join(BASE_TOOLS + sorted(set(approved)))
     front = re.sub(r"^name: .*$", "name: " + AGENT_NAME, front, count=1, flags=re.M)
@@ -209,7 +215,7 @@ def cmd_render_agent(a):
         "not configured and answer only from public sources.\n"
         "Your connector tools are read-only by construction. If a task needs a write, return it as a proposed action.\n" % src
     )
-    os.makedirs(os.path.dirname(out), exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w") as f:
         f.write("---\n" + front + "\n---\n" + MARKER + "\n" + body.rstrip("\n") + "\n" + extra)
     print("wrote %s with %d approved MCP tool(s)" % (out, len(approved)))
@@ -234,7 +240,7 @@ def cmd_status(a):
         return 0
     approved = approved_in_agent(agent)
     print("agent        : %s (%d approved tool(s))" % (agent, len(approved)))
-    names = read_lines(a.file) if a.file else sys.stdin.read().splitlines() if not sys.stdin.isatty() else []
+    names = read_lines(a.file) if a.file else []
     visible = {n.strip() for n in names if n.strip()}
     if not visible:
         print("no visible tool names given, skipped the comparison")

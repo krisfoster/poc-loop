@@ -14,7 +14,7 @@ Arguments: "$ARGUMENTS". Treat anything useful there as answers already given an
 2. **Where.** Use the current git repo. If there is none, offer to run `git init`. Ask whether the repo is or will be public, and if so tell the user not to put customer names or deal details in `POC.md` or `LOG.md`.
 3. **Deal link.** Ask if the PoC is tied to a deal. If yes, take the deal name and any success criteria the user pastes. Do not fetch anything from a CRM or other external system yet, just record what the user gives you.
 4. **Interview**, one short round, only for what is missing: the question; the two or three riskiest assumptions and why they might be wrong; the success check (one command if possible, otherwise exact manual steps); in and out of scope; the timebox for the first pass.
-5. **Write** the three files with the Write tool using the templates at the bottom of this skill, verbatim except for filling placeholders. Keep every heading and the header line exactly as given, one page maximum for `POC.md`. Never overwrite an existing file: if one exists, stop and ask. `LOG.md`: keep the header and entry format, then append a first entry "PoC started" in that format. `verify.sh`: if the success check is scriptable, replace everything after the `set -euo pipefail` line with the check, otherwise leave the stub, then `chmod +x verify.sh`. Afterwards confirm `verify.sh` is executable and that `POC.md` has no left-over `<...>` placeholders.
+5. **Write** (use `date '+%Y-%m-%d %H:%M'` for `Started:`) the three files with the Write tool using the templates at the bottom of this skill, verbatim except for filling placeholders. Keep every heading and the header line exactly as given, one page maximum for `POC.md`. Never overwrite an existing file: if one exists, stop and ask. `LOG.md`: keep the header and entry format, then append a first entry "PoC started" in that format. `verify.sh`: if the success check is scriptable, replace everything after the `set -euo pipefail` line with the check, otherwise leave the stub, then `chmod +x verify.sh`. Afterwards confirm `verify.sh` is executable and that `POC.md` has no left-over `<...>` placeholders.
 6. **Wire in.** Append to the repo's `CLAUDE.md` (create if needed) one short section: read `POC.md` and the last 40 lines of `LOG.md` at session start, stay within `POC.md`, park new ideas in `LOG.md` under Later, and never claim done without the output of `./verify.sh` or the manual check.
 7. **Finish.** Print `POC.md`, tell the user to read and correct it because that review matters most, and name the next command (research with `/poc-research <question>`, or start building). Do not commit.
 
@@ -24,7 +24,7 @@ Arguments: "$ARGUMENTS". Treat anything useful there as answers already given an
 ````markdown
 # POC: <short title>
 
-Started: <YYYY-MM-DD> | Timebox (first pass): <N hours> | Tier: <1 or 2> | Deal: <name or none> | Repo visibility: <private or public>
+Started: <YYYY-MM-DD HH:MM> | Timebox (first pass): <N hours> | Tier: <1 or 2> | Deal: <name or none> | Repo visibility: <private or public>
 
 ## Question
 <One or two sentences. What are we trying to find out or prove?>

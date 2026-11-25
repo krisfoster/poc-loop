@@ -64,3 +64,7 @@ Never put credentials, tokens or private customer data in it.
 - **A connector's tools are not listed**: the connector may be disconnected or its tools deferred. Reconnect it, then run `/spike-loop:poc-sources refresh`.
 - **The agent file was edited by hand or came from elsewhere**: the helper refuses to overwrite a file it did not generate. Move it aside or use `--force` when calling the helper directly.
 - **Check the helper directly**: `python3 skills/poc-sources/scripts/spike_sources.py status`. The tests are in `tests/`.
+
+## Limits of "read-only"
+
+The generated agent cannot call any write-class connector tool and has no Edit or Write tool. It does keep `Bash`, `WebFetch` and `WebSearch`. Text it reads in an email, chat message or document could try to talk it into sending internal content to an outside URL or writing a local file, and only the agent's prompt rules stand in the way. Keep the connector list to sources you trust. If you want a stricter agent, remove `Bash`, `WebFetch` and `WebSearch` from the `tools:` line of a copy you maintain yourself (the helper will refuse to overwrite it).

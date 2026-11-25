@@ -25,11 +25,11 @@ Seven subagents back these (`verifier`, `reviewer`, `reviewer-lite`, `debugger`,
 ## Install
 
 ```bash
-claude plugin marketplace add OWNER/spike-loop
+claude plugin marketplace add krisfoster/spike-loop
 claude plugin install spike-loop@spike-loop
 ```
 
-Replace `OWNER` with the GitHub account that hosts this repo. To try a clone without installing: `claude --plugin-dir /path/to/spike-loop`.
+To try a clone without installing: `claude --plugin-dir /path/to/spike-loop`.
 
 Then start a PoC in a git repo with `/spike-loop:poc-start`.
 

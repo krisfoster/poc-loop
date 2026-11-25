@@ -2,7 +2,7 @@
 
 A small PoC workflow for [Claude Code](https://claude.com/claude-code), packaged as a plugin. Write down the question and the success check, build in a timeboxed loop, verify and review with cheap isolated subagents, then package for handoff.
 
-Status: 0.1.0, early. The measurements are one run per variant on one small task, see [docs/measurements.md](docs/measurements.md).
+Status: 0.1.1, early. The measurements are one run per variant on one small task, so read them as indicative only: see [how to read them](docs/measurements.md#how-to-read-this).
 
 ## What you get
 
@@ -20,18 +20,39 @@ Status: 0.1.0, early. The measurements are one run per variant on one small task
 | `/spike-loop:poc-harden` | Review, then package, then final gate. Lean path for small PoCs, full path with `full` |
 | `/spike-loop:poc-checkpoint` | End-of-session summary, and `SUMMARY.md` on stop or harden |
 
-Seven subagents back these (`verifier`, `reviewer`, `reviewer-lite`, `debugger`, `researcher`, `packager`, `implementer`). The research ones are read-only. See [docs/workflow.md](docs/workflow.md) for how the pieces fit.
+Seven subagents back these (`verifier`, `reviewer`, `reviewer-lite`, `debugger`, `researcher`, `packager`, `implementer`). The research and review ones cannot edit files or write to a connector. They do keep `Bash` and web access, so their read-only rule is a prompt rule, not a sandbox: do not point them at untrusted content you would not paste into a chat. See [docs/workflow.md](docs/workflow.md) for how the pieces fit.
 
 ## Install
 
+1. Add the marketplace, then install the plugin. The install is user scope by default, so the commands work from any repo.
+
+   ```bash
+   claude plugin marketplace add krisfoster/poc-loop
+   claude plugin install spike-loop@spike-loop
+   ```
+
+2. Restart Claude Code.
+3. In a git repo, start a PoC with `/spike-loop:poc-start`.
+
+To try a clone without installing: `claude --plugin-dir /path/to/poc-loop`.
+
+### Update
+
 ```bash
-claude plugin marketplace add OWNER/spike-loop
-claude plugin install spike-loop@spike-loop
+claude plugin marketplace update spike-loop
+claude plugin update spike-loop@spike-loop
 ```
 
-Replace `OWNER` with the GitHub account that hosts this repo. To try a clone without installing: `claude --plugin-dir /path/to/spike-loop`.
+Restart Claude Code to apply it. Changes between versions are in [CHANGELOG.md](CHANGELOG.md).
 
-Then start a PoC in a git repo with `/spike-loop:poc-start`.
+### Uninstall
+
+```bash
+claude plugin uninstall spike-loop@spike-loop
+claude plugin marketplace remove spike-loop
+```
+
+Add `--keep-data` to the first command to keep the plugin's data directory. Your sources file in `~/.config/spike-loop/` and the generated `researcher-internal` agent in `~/.claude/agents/` are yours and are not removed. Delete them by hand if you want them gone.
 
 ## Internal research sources (first use)
 

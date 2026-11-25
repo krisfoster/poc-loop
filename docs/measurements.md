@@ -1,5 +1,9 @@
 # Measurements
 
+## How to read this
+
+One run per variant, on one small task. The dollar figures are indicative of how the variants compare on that task, not a benchmark, and differences under about 30% are noise. The case for the loop on this evidence is independent verification and review plus repo hygiene, not a token saving.
+
 Question: does the loop give better quality and lower token use than one plain Opus session? Short answer from one small task: it did not lower cost until harden was trimmed, and then it only came close. Treat everything here as one run per variant on one task, not as a benchmark.
 
 ## Method

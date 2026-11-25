@@ -20,7 +20,7 @@ README, docs, `.env.example`, `.gitignore`, `.envrc`, run scripts (`verify.sh`, 
 1. Read `POC.md` and `LOG.md` if present. Establish what the PoC proves and how it is run.
 2. Write or update the README: what it is, prerequisites, setup, run, verify, known limits. Every command must be one you ran.
 3. Make `.env.example` list every variable the app reads, with obvious placeholders for secrets, or `op://` references if the repo already uses 1Password references. Never read or copy a real `.env`.
-4. Clean-clone test: `git clone` the repo to a temp dir (or copy tracked files) and follow your own README. Record the result. Tear down anything you started.
+4. Clean-clone test: your new files are untracked, so a plain `git clone` would not contain them. Copy the working tree minus ignored files into a fresh temp dir (`git ls-files -co --exclude-standard -z | rsync -a --from0 --files-from=- ./ <dir>/`), never copying `.env`. Follow your own README there. Record the result. Tear down anything you started.
 5. Scan tracked files for secrets, customer names and internal hostnames (`gitleaks git`, then `grep` for obvious patterns). Report locations only, never the values.
 
 ## Output (cap: 40 lines)

@@ -2,5 +2,11 @@
 [files]
 extend-exclude = ["*.lock", "node_modules", "dist", "build", "*.svg", "*.min.js"]
 
+# Binary images are not text. Excluded by type because the pre-commit hook passes files by name,
+# which bypasses extend-exclude.
+[type.png]
+extend-glob = ["*.png"]
+check-file = false
+
 [default.extend-words]
 # Intentional words that look like typos go here, one per line, as: word = "word"

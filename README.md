@@ -25,7 +25,7 @@ Seven subagents back these (`verifier`, `reviewer`, `reviewer-lite`, `debugger`,
 ## Install
 
 ```bash
-claude plugin marketplace add krisfoster/spike-loop
+claude plugin marketplace add krisfoster/poc-loop
 claude plugin install spike-loop@spike-loop
 ```
 

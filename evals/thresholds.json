@@ -1,0 +1,8 @@
+{
+  "_note": "Provisional. Task 1.8 measures variance and replaces these. See docs/evals/spec.md, success and regression thresholds.",
+  "case_drop_runs": 2,
+  "case_rerun_drop_runs": 1,
+  "stage_drop_pp": 15,
+  "stage_min_runs": 12,
+  "rerun_n": 5
+}

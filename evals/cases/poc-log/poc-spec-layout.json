@@ -1,0 +1,41 @@
+{
+  "id": "poc-spec-layout",
+  "stage": "poc-log",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "New layout: appends one entry to poc-spec/LOG.md and leaves the repo root clean",
+  "prompt": "/spike-loop:poc-log Tried an HMAC known vector. Learned the signature matches. Dead ends: none. Decision: none yet.",
+  "fixture": "poc-log-specs",
+  "allowed_tools": [
+    "Read",
+    "Edit",
+    "Write",
+    "Bash(date *)",
+    "Bash(git *)"
+  ],
+  "timeout_s": 240,
+  "max_cost_usd": 0.25,
+  "graders": [
+    {
+      "name": "entries_in_poc-spec_LOG_md",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} ",
+      "flags": "m",
+      "count": 2
+    },
+    {
+      "name": "entry_mentions_the_text",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "HMAC",
+      "min": 1
+    },
+    {
+      "name": "no_root_log",
+      "type": "file_exists",
+      "path": "LOG.md",
+      "exists": false
+    }
+  ]
+}

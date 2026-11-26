@@ -28,7 +28,7 @@ A path audit found a second problem: the skills do not agree on what "here" mean
 
 ## Non-goals
 
-- Moving this plugin repo's own documentation. `docs/` and, on `evals-spec`, `docs/evals/` and `docs/handoffs/` stay where they are. This spec governs the PoC repos the plugin creates.
+- Moving this plugin repo's own documentation. `docs/` and `docs/evals/` stay where they are. This spec governs the PoC repos the plugin creates.
 - Writing hand-offs. What a phase writes to disk is the hand-off spec. This spec only reserves `poc-spec/handoffs/`.
 - An automatic migration command. Moving a user's files without being asked is a risk this spec does not take (see "Migration").
 - Changing what `POC.md`, `LOG.md` or `SUMMARY.md` contain, or their templates beyond the paths they name.

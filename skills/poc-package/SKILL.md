@@ -9,3 +9,5 @@ argument-hint: "[project path]"
 Package the PoC. Path from the user: "$ARGUMENTS". If that is empty, use the current working directory.
 
 You have no conversation history. Read `POC.md` and `LOG.md` if present, then follow your steps and output contract. Do not stage or commit anything.
+
+End with one line starting `Next:` (inside your line cap). If the clean-clone run failed or gaps are open: fix them (the packager never edits application code), then run `/spike-loop:poc-package` again. Otherwise `/spike-loop:poc-checkpoint harden` to write `SUMMARY.md`.

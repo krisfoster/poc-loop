@@ -55,6 +55,14 @@ class SkillsContractTest(unittest.TestCase):
         self.assertRegex(text, r"(?m)^argument-hint: ")
         self.assertIn("Write nothing", text)
 
+    def test_help_answers_from_its_table_and_reads_no_other_skill(self):
+        # A live smoke run showed the read of another skill's file is blocked when reads outside
+        # the working directory are blocked. The table already holds everything the answer needs.
+        text = read("skills", "poc-help", "SKILL.md")
+        self.assertNotIn("CLAUDE_SKILL_DIR", text)
+        self.assertNotIn("../poc-", text)
+        self.assertIn("Do not read any other file", text)
+
     def test_forked_skills_keep_agent_contracts_untouched(self):
         # The Next line is added in the skill, not the agent, so poc-harden's use of the agents is unchanged.
         for agent in ("verifier", "reviewer", "reviewer-lite", "debugger", "packager", "implementer", "researcher"):

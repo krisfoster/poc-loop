@@ -31,7 +31,7 @@ Every command ends with one line that starts with `Next:` and names the command 
 
 ## With a command name
 
-If the arguments name a command (`verify`, `poc-verify` or `/spike-loop:poc-verify` all mean the same), read `${CLAUDE_SKILL_DIR}/../poc-<name>/SKILL.md` and print: the command line with its `argument-hint`, what it does and when to use it in at most two short sentences taken from its `description`, and its row from the table above. If no such file exists, say the name is not a command and print the table. Then stop, ending with `Next:` set to that command's "Then" cell.
+If the arguments name a command (`verify`, `poc-verify` or `/spike-loop:poc-verify` all mean the same), find its row in the table above. Do not read any other file: the table holds everything needed. Print the command with its arguments (the first cell), what it does and when to use it in at most two short sentences made from the "Use it to" cell, and the "Then" cell. If no row matches, say the name is not a command and print the table. Then stop, ending with `Next:` set to that command's "Then" cell.
 
 ## With no arguments
 

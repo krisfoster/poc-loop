@@ -16,7 +16,7 @@ Lost? `/spike-loop:poc-help` lists the commands and reads `poc-spec/POC.md` and 
 
 1. **Start** (about 10 minutes). `/spike-loop:poc-start`. It asks the tier, whether the PoC is tied to a deal, and interviews you for the question, the riskiest assumptions, how you will know it worked, and the timebox. Read and correct `poc-spec/POC.md`: that review matters most.
 2. **Research** (only if the question depends on facts). `/spike-loop:poc-research <question>`. Public docs from vendor sources, internal documents from the sources you set up. Returns a cited half page.
-3. **Build** (timeboxed, one unit of work per session). In the main session, staying within `poc-spec/POC.md`. New ideas go in `poc-spec/LOG.md` under Later. `/spike-loop:poc-build <task> | done when <condition>` hands a bounded chunk to an isolated worktree.
+3. **Build** (timeboxed, one unit of work per session). In the main session, staying within `poc-spec/POC.md`. New ideas go in `poc-spec/LOG.md` under Later. `/spike-loop:poc-build <task> | done when <condition>` hands a bounded chunk to the implementer in a separate git worktree. The worktree starts from the remote default branch (`origin/<default>`), so unpushed commits and uncommitted work are not in it. To include local work, commit it and set `worktree.baseRef` to `"head"`. The change stays on the worktree's branch until you merge it.
 4. **Verify.** `/spike-loop:poc-verify`. Pass or fail with only the relevant errors. A manual check comes back as needs-human, never passed. After two failed fix attempts use `/spike-loop:poc-debug` or `/clear`.
 5. **Capture** (about 2 minutes). `/spike-loop:poc-log`.
 6. **Decide**, and write one outcome in `poc-spec/LOG.md`:
@@ -44,7 +44,7 @@ Lost? `/spike-loop:poc-help` lists the commands and reads `poc-spec/POC.md` and 
 | Debug | `debugger` | Opus, read-only |
 | Research | `researcher`, or `researcher-internal` after setup | Sonnet, read-only |
 | Package | `packager` | Sonnet, writes README, docs, `.env.example` and run scripts only, never stages or commits |
-| Build chunk | `implementer` | Sonnet, own worktree, no MCP tools |
+| Build chunk | `implementer` | Sonnet, own worktree when called through the Agent tool as `poc-build` does, no MCP tools |
 
 ## Harden
 

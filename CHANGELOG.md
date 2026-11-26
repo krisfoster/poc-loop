@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- **`/spike-loop:poc-build` now runs the implementer in a worktree, as documented.** Until now the command was a `context: fork` skill, and in a headless test on Claude Code 2.1.325 that ran the implementer in your main working tree: the agent's `isolation: worktree` was not applied, so edits landed in your tree and no worktree was made. The command now calls the agent through the Agent tool, which did create a worktree in the same test. The Claude Code docs do not say whether a forked skill honours `isolation`, so this is based on that one observation, not on the docs. Not checked in an interactive session.
+- **What changes for you.** The change is on the worktree's branch, not in your tree. The command reports the worktree path and branch, says whether the change is committed or only uncommitted in the worktree, and its `Next:` line is `git merge <branch>` (or a commit step first) then `/spike-loop:poc-verify`. It never merges for you. Per the Claude Code docs the worktree starts from the remote default branch, so unpushed commits and uncommitted work are not in it: to include local work, commit it and set `worktree.baseRef` to `"head"`. A repo with no remote was not checked.
+- Three tests: `poc-build` is not a fork and calls the agent through the Agent tool, it says where the change is and does not merge, and no forked skill names an agent that sets `isolation`.
+
 ## 0.2.0
 
 - **New layout.** `/spike-loop:poc-start` now writes `poc-spec/POC.md` and `poc-spec/LOG.md` (and `verify.sh` at the repo root), and appends a `CLAUDE.md` section that points at them. One folder holds the working documents, so it can be left out of a public repo or a customer hand-off. `SUMMARY.md`, `README.md`, `CLAUDE.md`, `verify.sh` and `.env.example` stay at the repo root.

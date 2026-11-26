@@ -68,6 +68,62 @@ class SkillsContractTest(unittest.TestCase):
         for agent in ("verifier", "reviewer", "reviewer-lite", "debugger", "packager", "implementer", "researcher"):
             self.assertNotIn("Next:", read("agents", agent + ".md"), agent)
 
+    def test_poc_build_calls_the_implementer_through_the_agent_tool(self):
+        # F1: a `context: fork` skill ran the implementer in the main tree even though the agent sets
+        # `isolation: worktree`. Calling the agent through the Agent tool does create the worktree
+        # (Claude Code 2.1.325), so poc-build must not be a fork and must say how it calls the agent.
+        text = read("skills", "poc-build", "SKILL.md")
+        front = text.split("---")[1]
+        self.assertNotRegex(front, r"(?m)^context:", "poc-build must not fork")
+        self.assertNotRegex(front, r"(?m)^agent:", "poc-build must not name an agent in its frontmatter")
+        step2 = [l for l in text.splitlines() if l.startswith("2. **Call the agent.**")]
+        self.assertEqual(len(step2), 1)
+        self.assertIn("through the Agent tool", step2[0])
+        self.assertIn("`spike-loop:implementer`", step2[0])
+        self.assertNotRegex(step2[0], r"(?i)\b(never|do not) call\b|ignore `spike-loop")
+        self.assertIn("isolation: worktree", read("agents", "implementer.md"))
+
+    def test_poc_build_brief_does_not_name_the_main_checkout(self):
+        # The implementer's paths rule uses the repo root named in its brief. Naming the main checkout would
+        # send its edits to the user's own tree, which is the F1 symptom, so the brief names the worktree.
+        text = read("skills", "poc-build", "SKILL.md")
+        step2 = [l for l in text.splitlines() if l.startswith("2. **Call the agent.**")][0]
+        self.assertIn("Do not put the main checkout's path in the brief", step2)
+        self.assertIn("root of the git worktree it starts in", step2)
+        self.assertIn("must not read or edit the main checkout", step2)
+        self.assertIn("commit its change in the worktree", step2)
+        self.assertNotIn("as an absolute path", step2)
+
+    def test_poc_build_tells_the_user_where_the_change_is(self):
+        text = read("skills", "poc-build", "SKILL.md")
+        step3 = [l for l in text.splitlines() if l.startswith("3. **Report.**")]
+        self.assertEqual(len(step3), 1)
+        step3 = step3[0]
+        self.assertIn("worktree path and branch", step3)
+        self.assertIn("status --porcelain", step3)   # is the change committed?
+        self.assertIn("origin/<default>", step3)     # the base, per the docs
+        self.assertIn("worktree.baseRef", step3)
+        self.assertIn("Do not merge, cherry-pick or copy it", step3)
+        nxt = [l for l in text.splitlines() if l.startswith("End with one line starting `Next:`")]
+        self.assertEqual(len(nxt), 1)
+        self.assertIn("`git merge <branch>`", nxt[0])
+        self.assertIn("/spike-loop:poc-verify", nxt[0])
+        self.assertIn("commit -m", nxt[0])            # the uncommitted case
+
+    def test_no_forked_skill_names_an_agent_that_sets_isolation(self):
+        # A fork does not apply the agent's isolation, so a forked skill must not rely on it or promise it.
+        for name in commands():
+            text = read("skills", name, "SKILL.md")
+            if re.search(r"""(?m)^context:\s*["']?fork""", text):
+                agent = re.search(r"""(?m)^agent:\s*["']?spike-loop:([\w-]+)""", text).group(1)
+                self.assertNotIn("worktree", text.split("---")[1], name)
+                self.assertNotIn("isolation: worktree", read("agents", agent + ".md"),
+                                 "%s forks %s, which sets isolation that a fork does not apply" % (name, agent))
+
+    def test_poc_help_row_for_build_mentions_the_merge(self):
+        row = [l for l in read("skills", "poc-help", "SKILL.md").splitlines() if "/spike-loop:poc-build" in l][0]
+        self.assertIn("merge its branch", row)
+
 
 if __name__ == "__main__":
     unittest.main()

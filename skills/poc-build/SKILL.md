@@ -1,9 +1,7 @@
 ---
 name: poc-build
-description: Runs the implementer agent in an isolated worktree on one bounded chunk of an approved plan. Use only when the user types /poc-build with the task and a one-sentence done condition.
+description: Runs the implementer agent in an isolated git worktree on one bounded chunk of an approved plan. Use only when the user types /poc-build with the task and a one-sentence done condition.
 disable-model-invocation: true
-context: fork
-agent: spike-loop:implementer
 argument-hint: "<task> | done when <condition>"
 ---
 Implement this chunk: "$ARGUMENTS".
@@ -12,6 +10,8 @@ Implement this chunk: "$ARGUMENTS".
 
 File paths named in the task are relative to the repo root.
 
-You have no conversation history. The text above must contain the task and a done condition. If either is missing, reply only with `NEEDS INPUT: give me the task and a one-sentence done condition`. Otherwise stay inside the stated scope, run the verification command if one is given, and report using your output contract. Do not push or open a pull request.
+1. **Check the arguments.** They must hold a task and a one-sentence done condition. If either is missing, reply only with `NEEDS INPUT: give me the task and a one-sentence done condition`, then the `Next:` line below.
+2. **Call the agent.** Call the `spike-loop:implementer` agent once through the Agent tool (do not run it as a fork of this skill: a forked skill ran it in the main working tree, so the agent's `isolation: worktree` was not applied). The agent has no conversation history, so the brief holds the task, the done condition, and the verification command if the user gave one. Do not put the main checkout's path in the brief. Say instead that its repo root is the root of the git worktree it starts in, that it must not read or edit the main checkout, and that it should commit its change in the worktree when the done condition is met. Tell it not to push or open a pull request.
+3. **Report.** Show the agent's report as returned, then say where the change is: the worktree path and branch from the Agent tool result, or that no worktree was reported. Run `git -C "<worktree path>" status --porcelain` and `git -C "<main root>" log --oneline <branch> --not HEAD`, and say whether the change is committed on the branch, uncommitted in the worktree, or both. The worktree branches from the remote default branch (`origin/<default>`), not from your current branch or local commits, so unpushed commits and uncommitted work are not in it. To include local work, the user commits it and sets `worktree.baseRef` to `"head"`. The change stays in the worktree until the user brings it over. Do not merge, cherry-pick or copy it, and do not remove the worktree.
 
-End with one line starting `Next:` (inside your line cap): `/spike-loop:poc-verify` to check the chunk, or after a `NEEDS INPUT` reply, `/spike-loop:poc-build <task> | done when <condition>` with the missing part.
+End with one line starting `Next:`. If the change is committed: `git merge <branch>` and then `/spike-loop:poc-verify` to check the chunk (on a feature branch that merge also brings in the default branch's newer commits, so `git cherry-pick <commit>` is the narrower choice). If it is only uncommitted in the worktree: first `git -C "<worktree path>" add -A` and `git -C "<worktree path>" commit -m "<message>"`, then the same. After a `NEEDS INPUT` reply: `/spike-loop:poc-build <task> | done when <condition>` with the missing part.

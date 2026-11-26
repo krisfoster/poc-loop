@@ -21,7 +21,7 @@ Arguments: "$ARGUMENTS". Never use em dashes. This command only reads and prints
 | `/spike-loop:poc-start` | Interview, then write `poc-spec/POC.md`, `poc-spec/LOG.md` and a failing `verify.sh` stub | `poc-research` if the question needs facts, else build and `poc-verify` |
 | `/spike-loop:poc-research <question>` | Answer a factual question from primary sources, with dates and versions | Build on it, or `poc-log` if it changes an assumption |
 | `/spike-loop:poc-sources [setup, status, refresh, add <note>]` | One-time setup and later updates of the internal sources the researcher may read | Restart Claude Code, then `poc-research` |
-| `/spike-loop:poc-build <task> \| done when <condition>` | Hand one bounded chunk of an approved plan to the implementer | `poc-verify` |
+| `/spike-loop:poc-build <task> \| done when <condition>` | Hand one bounded chunk of an approved plan to the implementer in a worktree | merge its branch, then `poc-verify` |
 | `/spike-loop:poc-verify [path or focus]` | Run `verify.sh` or the project's own check, get pass or fail with only the relevant errors | `poc-log` on a pass, `poc-debug` after two failed fixes |
 | `/spike-loop:poc-debug <command, error, what you tried>` | Find the root cause of a failure that survived a fix | Apply the fix, then `poc-verify` |
 | `/spike-loop:poc-review [path, branch or focus]` | Independent review of a diff or PoC | Fix findings, then `poc-harden` |

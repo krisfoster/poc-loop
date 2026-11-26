@@ -1,0 +1,6 @@
+{
+  "name": "probe",
+  "description": "Throwaway measuring instrument for docs/layout plan tasks 0.2 and 0.3. Not part of the product.",
+  "version": "0.0.0",
+  "agents": ["./agents/probe-agent.md"]
+}

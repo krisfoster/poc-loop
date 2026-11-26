@@ -59,7 +59,7 @@ class SkillsContractTest(unittest.TestCase):
         # A live smoke run showed the read of another skill's file is blocked when reads outside
         # the working directory are blocked. The table already holds everything the answer needs.
         text = read("skills", "poc-help", "SKILL.md")
-        self.assertNotIn("CLAUDE_SKILL_DIR", text)
+        self.assertNotIn("${CLAUDE_SKILL_DIR}/../", text)  # the paths rule may name ${CLAUDE_SKILL_DIR}, a read of a sibling skill may not
         self.assertNotIn("../poc-", text)
         self.assertIn("Do not read any other file", text)
 

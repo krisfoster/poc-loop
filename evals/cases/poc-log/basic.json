@@ -3,14 +3,33 @@
   "stage": "poc-log",
   "set": "tune",
   "n_runs": 3,
-  "description": "Appends one entry in the log format when the entry text is given",
+  "description": "Older layout (POC.md and LOG.md at the repo root) still works: appends one entry in the log format when the entry text is given",
   "prompt": "/spike-loop:poc-log Tried an HMAC known vector. Learned the signature matches. Dead ends: none. Decision: none yet.",
   "fixture": "poc-log-basic",
-  "allowed_tools": ["Read", "Edit", "Write", "Bash(date *)"],
+  "allowed_tools": [
+    "Read",
+    "Edit",
+    "Write",
+    "Bash(date *)",
+    "Bash(git *)"
+  ],
   "timeout_s": 240,
   "max_cost_usd": 0.25,
   "graders": [
-    {"name": "two_dated_entries", "type": "file_regex", "path": "LOG.md", "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} ", "flags": "m", "count": 2},
-    {"name": "entry_mentions_the_text", "type": "file_regex", "path": "LOG.md", "pattern": "HMAC", "min": 1}
+    {
+      "name": "two_dated_entries",
+      "type": "file_regex",
+      "path": "LOG.md",
+      "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} ",
+      "flags": "m",
+      "count": 2
+    },
+    {
+      "name": "entry_mentions_the_text",
+      "type": "file_regex",
+      "path": "LOG.md",
+      "pattern": "HMAC",
+      "min": 1
+    }
   ]
 }

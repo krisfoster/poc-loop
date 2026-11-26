@@ -1,4 +1,8 @@
 {
-  "_note": "Estimated USD per run from measured runs (a subscription estimate, not a bill). Updated by task 1.8.",
-  "poc-log/basic": 0.0039
+  "_note": "Estimated USD per run from measured runs (a subscription estimate, not a bill). poc-log/basic from task 1.8 (10 runs). The four layout cases from 3 or 4 valid runs each on 2026-11-26.",
+  "poc-log/basic": 0.0039,
+  "poc-log/both-layouts": 0.003,
+  "poc-log/poc-spec-layout": 0.0036,
+  "poc-log/subdir-root-added": 0.0037,
+  "poc-log/subdir-root-not-added": 0.0033
 }

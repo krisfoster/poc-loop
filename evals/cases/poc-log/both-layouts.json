@@ -1,0 +1,36 @@
+{
+  "id": "both-layouts",
+  "stage": "poc-log",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "Both layouts present: the command stops and appends to neither LOG.md",
+  "prompt": "/spike-loop:poc-log Tried an HMAC known vector. Learned the signature matches. Dead ends: none. Decision: none yet.",
+  "fixture": "poc-log-both",
+  "allowed_tools": [
+    "Read",
+    "Edit",
+    "Write",
+    "Bash(date *)",
+    "Bash(git *)"
+  ],
+  "timeout_s": 240,
+  "max_cost_usd": 0.25,
+  "graders": [
+    {
+      "name": "entries_in_LOG_md",
+      "type": "file_regex",
+      "path": "LOG.md",
+      "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} ",
+      "flags": "m",
+      "count": 1
+    },
+    {
+      "name": "entries_in_poc-spec_LOG_md",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} ",
+      "flags": "m",
+      "count": 1
+    }
+  ]
+}

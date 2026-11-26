@@ -47,7 +47,7 @@ Goal: find out what headless runs can and cannot do, before building anything. T
 
 **Gate 0: passed on 2026-11-25, with conditions.** 0.2 (a slash command runs headlessly with the plugin loaded) and 0.4 (the subscription token authenticates an isolated run) both worked, so the design is available as written. **Decision: a custom runner**, for the reasons in `docs/evals/spec.md` under "Runner decision". `claude plugin eval` stays optional for model-graded rubrics.
 
-Conditions carried forward: (1) Anthropic's terms on scripted use of a subscription must be read, and Docker's own policy checked, before the first suite larger than a smoke test, which means before Gate 1 runs more than a handful of cases. (2) Plan usage over a larger run is measured in Phase 1 (task 1.8). (3) Finding F1 is fixed on a separate branch, not here.
+Conditions carried forward: (1) Anthropic's terms on scripted use of a subscription must be read, and the maintainer's organisation's own policy checked, before the first suite larger than a smoke test, which means before Gate 1 runs more than a handful of cases. (2) Plan usage over a larger run is measured in Phase 1 (task 1.8). (3) Finding F1 is fixed on a separate branch, not here.
 
 ## Phase 1: harness core
 
@@ -70,6 +70,8 @@ Status as of 2026-11-26: 1.1 to 1.7 and 1.9 done and unit-tested (37 harness tes
 ## Phase 2: deterministic graders and cheap stage evals
 
 Write each grader with its unit test first, using hand-made good and bad outputs, then add the live case.
+
+**Layout note (2026-11-26).** The `poc-spec/` layout is on `main` (see `docs/layout/spec.md`). Stage cases from here on use the new layout by default and add one older-layout case where the stage reads `POC.md` or `LOG.md`. The runner now takes two optional case fields, `cwd` and `add_root_dir`, so a case can start in a subdirectory with or without the repo root added as a directory. Fixtures: `poc-log-basic` is the older layout, `poc-log-specs` the new one (with `sub/deep`), `poc-log-both` has both. A skill that runs `git -C` needs `Bash(git *)`, and each part of a compound command needs its own grant. Five `poc-log` cases exist for this (`basic`, `poc-spec-layout`, `subdir-root-added`, `subdir-root-not-added` which expects a clean refusal under the harness's strict read setting, and `both-layouts`). The remaining layout cases in `docs/layout/spec.md` (`poc-start`, `poc-checkpoint`, packager warning) are ported from the manual checks in `docs/layout/tools/manual/` as the Phase 2 stages are built.
 
 | ID | Task | Acceptance |
 |---|---|---|

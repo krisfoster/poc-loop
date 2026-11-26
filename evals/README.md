@@ -2,7 +2,7 @@
 
 Evals for the Spike Loop skills and agents. Design: `docs/evals/spec.md`. Plan: `docs/evals/plan.md`. What was learned about headless runs: `docs/evals/spike-findings.md`. Plugin defects found along the way: `docs/evals/findings.md`.
 
-Status: Phase 1 (harness core). One case exists, `poc-log/basic`. Everything else is in the plan.
+Status: Phase 1 (harness core), plus five `poc-log` cases for the `poc-spec/` layout. Everything else is in the plan.
 
 ## Free and paid
 
@@ -45,6 +45,14 @@ Cases that grant `Bash`, `WebFetch` or `WebSearch` without a narrow pattern run 
 - **Behaviour that varies:** turns 5 to 7, and three different tool-call sequences. Every run had one permission denial (the skill's `printf >>` append is denied by the narrow `Bash(date *)` grant, and the skill then uses `Read` and `Edit`), which is why this case does not use the `no_permission_denials` grader.
 - **What this does not tell us:** a case that always passes cannot show score noise, so the provisional thresholds in `thresholds.json` are not yet replaced. The variance measurement is repeated on the Phase 2 cases (plan, Gate 2).
 
+## Layout cases (2026-11-26)
+
+Five `poc-log` cases for the `poc-spec/` layout, run 3 times each on Claude Code 2.1.325 (Haiku): `basic` (older layout) 3/3, `poc-spec-layout` 3/3, `subdir-root-added` 3/3, `both-layouts` 3/3, `subdir-root-not-added` 3/3 (a clean refusal, see above). Mean estimated cost about $0.003 to $0.004 per run. Two further runs of `subdir-root-not-added` were recorded as `harness_failure` (`API Error: Can't reach the API server`, the network was down and the retries ran for nearly an hour each) and are not in the counts. Three runs per case is a smoke result, not a measured noise level: the variance measurement on these cases is still to be done (plan, Gate 2).
+
 ## Adding a case
 
-Add `evals/cases/<stage>/<id>.json` (the file name must equal `id`, the directory must equal `stage`) and, if it needs one, a fixture directory under `evals/fixtures/`. Fields are validated before any model call, and an error names the file and the field. Fields: `id`, `stage`, `set` (`tune` or `holdout`), `prompt`, `fixture`, `allowed_tools`, `graders`, and optionally `n_runs`, `timeout_s`, `max_cost_usd` (at least 0.10), `git`, `description`. Do not run the `holdout` set while tuning prompts.
+Add `evals/cases/<stage>/<id>.json` (the file name must equal `id`, the directory must equal `stage`) and, if it needs one, a fixture directory under `evals/fixtures/`. Fields are validated before any model call, and an error names the file and the field. Fields: `id`, `stage`, `set` (`tune` or `holdout`), `prompt`, `fixture`, `allowed_tools`, `graders`, and optionally `n_runs`, `timeout_s`, `max_cost_usd` (at least 0.10), `git`, `description`, `cwd` and `add_root_dir`. `cwd` is a subdirectory of the fixture in which the session starts (it must exist in the fixture, default the workspace root). `add_root_dir` adds the workspace root as an additional directory, like `/add-dir` in a session. Without it, a session started below the root has the root outside what it may use: a `cd` to the root is refused, and because every run keeps `blockReadsOutsideWorkingDirectories` on (so a granted `Read` cannot reach the repo's own `.env`), reads of the root's files are refused too. So `poc-log/subdir-root-not-added` measures a clean refusal, not success. With default read settings the same command succeeds using file tools only (manual case C10), which this harness cannot test. Diffs and graders always look at the whole workspace. Do not run the `holdout` set while tuning prompts.
+
+## Layout fixtures
+
+The plugin keeps a PoC's documents in `poc-spec/` (see `docs/layout/spec.md`) and still reads the older layout, with `POC.md` and `LOG.md` at the repo root. Fixtures: `poc-log-basic` is the **older layout**, so `poc-log/basic` is the fallback case. `poc-log-specs` is the new layout and has a `sub/deep` directory for the subdirectory cases. `poc-log-both` has both layouts, for the half-migrated stop. A command that runs `git -C "<root>" ...` needs `Bash(git *)` in `allowed_tools`, and each part of a compound command needs its own grant (a pattern for the whole compound does not work, see `docs/layout/findings.md`). New stage cases use the new layout by default and add one older-layout case where the stage reads the documents.

@@ -1,0 +1,47 @@
+{
+  "id": "subdir-root-not-added",
+  "stage": "poc-log",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "New layout, session started in sub/deep, repo root NOT added, under the harness's strict read setting: the root's files cannot be read, so the command must refuse cleanly (say so, suggest /add-dir, work around nothing) and append nothing. With default read settings the same command succeeds using file tools only (manual case C10 in docs/layout/findings.md), which the harness cannot test because it keeps blockReadsOutsideWorkingDirectories on to protect the repo's own .env",
+  "prompt": "/spike-loop:poc-log Tried an HMAC known vector. Learned the signature matches. Dead ends: none. Decision: none yet.",
+  "fixture": "poc-log-specs",
+  "allowed_tools": [
+    "Read",
+    "Edit",
+    "Write",
+    "Bash(date *)",
+    "Bash(git *)"
+  ],
+  "timeout_s": 240,
+  "max_cost_usd": 0.25,
+  "graders": [
+    {
+      "name": "nothing_appended",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} ",
+      "flags": "m",
+      "count": 1
+    },
+    {
+      "name": "nothing_under_start_dir",
+      "type": "file_exists",
+      "path": "sub/deep/poc-spec",
+      "exists": false
+    },
+    {
+      "name": "no_root_log",
+      "type": "file_exists",
+      "path": "LOG.md",
+      "exists": false
+    },
+    {
+      "name": "no_write_tool",
+      "type": "tool_not_used",
+      "tool": "Write"
+    }
+  ],
+  "cwd": "sub/deep",
+  "add_root_dir": false
+}

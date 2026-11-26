@@ -12,7 +12,7 @@ MIN_RUN_CAP_USD = 0.10  # a first turn alone costs about $0.03, see docs/evals/s
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 ALLOWED_KEYS = {
     "id", "stage", "set", "n_runs", "prompt", "fixture", "allowed_tools", "timeout_s",
-    "max_cost_usd", "graders", "git", "description",
+    "max_cost_usd", "graders", "git", "description", "cwd", "add_root_dir",
 }
 REQUIRED_KEYS = ["id", "stage", "set", "prompt", "fixture", "allowed_tools", "graders"]
 
@@ -34,6 +34,8 @@ class Case:
     timeout_s: int = 300
     max_cost_usd: float = 0.25
     git: bool = True
+    cwd: str = "."  # where the session starts, relative to the workspace root (a subdirectory of the fixture)
+    add_root_dir: bool = False  # add the workspace root as an additional directory, like /add-dir in a session
     description: str = ""
     source: str = field(default="", compare=False)
 
@@ -83,6 +85,15 @@ def validate(raw, path, fixtures_dir=None):
     _check(path, "max_cost_usd", isinstance(cap, (int, float)) and not isinstance(cap, bool) and cap >= MIN_RUN_CAP_USD,
            "must be a number of at least %.2f (smaller caps stop a run on its first turn)" % MIN_RUN_CAP_USD, errors)
     _check(path, "git", isinstance(raw.get("git", True), bool), "must be true or false", errors)
+    _check(path, "add_root_dir", isinstance(raw.get("add_root_dir", False), bool), "must be true or false", errors)
+    cwd = raw.get("cwd", ".")
+    if _check(path, "cwd", isinstance(cwd, str) and cwd.strip() != "", "must be a relative directory name", errors):
+        parts = Path(cwd).parts
+        _check(path, "cwd", not Path(cwd).is_absolute() and ".." not in parts,
+               "must be inside the workspace (no absolute path, no '..')", errors)
+        if fixtures_dir is not None and isinstance(raw.get("fixture"), str) and not Path(cwd).is_absolute() and ".." not in parts:
+            _check(path, "cwd", (Path(fixtures_dir) / raw["fixture"] / cwd).is_dir(),
+                   "no such directory in the fixture (it must exist before the run)", errors)
 
     specs = raw["graders"]
     if _check(path, "graders", isinstance(specs, list) and len(specs) > 0, "must be a non-empty list", errors):
@@ -100,7 +111,8 @@ def validate(raw, path, fixtures_dir=None):
     return Case(
         id=raw["id"], stage=raw["stage"], set=raw["set"], prompt=raw["prompt"], fixture=raw["fixture"],
         allowed_tools=list(tools), graders=list(specs), n_runs=n_runs, timeout_s=timeout,
-        max_cost_usd=float(cap), git=raw.get("git", True), description=raw.get("description", ""), source=str(path),
+        max_cost_usd=float(cap), git=raw.get("git", True), cwd=str(Path(cwd)) if cwd != "." else ".",
+        add_root_dir=raw.get("add_root_dir", False), description=raw.get("description", ""), source=str(path),
     ), []
 
 

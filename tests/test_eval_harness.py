@@ -71,6 +71,20 @@ class CaseTests(unittest.TestCase):
         self.check(lambda r: r.update(graders=[{"type": "nope"}]), "graders[0].type")
         self.check(lambda r: r.update(graders=[{"type": "file_regex", "path": "x"}]), "graders[0].pattern")
 
+    def test_cwd_and_add_root_dir_are_validated(self):
+        self.check(lambda r: r.update(cwd="/etc"), "field 'cwd'")
+        self.check(lambda r: r.update(cwd="../x"), "field 'cwd'")
+        self.check(lambda r: r.update(cwd="sub/../.."), "field 'cwd'")
+        self.check(lambda r: r.update(cwd=""), "field 'cwd'")
+        self.check(lambda r: r.update(cwd="no/such/dir"), "field 'cwd'")  # must exist in the fixture
+        self.check(lambda r: r.update(add_root_dir="yes"), "field 'add_root_dir'")
+        good = dict(copy.deepcopy(GOOD), fixture="poc-log-specs", cwd="sub/deep", add_root_dir=True)
+        case, errs = cases_mod.validate(good, "cases/poc-log/basic.json", EVALS / "fixtures")
+        self.assertEqual(errs, [])
+        self.assertEqual((case.cwd, case.add_root_dir), ("sub/deep", True))
+        default, _ = cases_mod.validate(copy.deepcopy(GOOD), "cases/poc-log/basic.json", EVALS / "fixtures")
+        self.assertEqual((default.cwd, default.add_root_dir), (".", False))
+
     def test_loader_rejects_before_any_run_and_real_cases_load(self):
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / "poc-log").mkdir()
@@ -184,6 +198,47 @@ class RunnerTests(unittest.TestCase):
         with mock.patch.dict(os.environ, env):
             return runner.run_once(case, 1, ROOT, self.plugin, "dummy-token", out, EVALS / "fixtures",
                                    claude_cmd=(sys.executable, str(FAKE)), keep=True), out
+
+    def settings_in(self, seen):
+        argv = seen["argv"]
+        return json.loads(argv[argv.index("--settings") + 1])
+
+    def test_default_case_starts_in_the_workspace_root_without_extra_directories(self):
+        r, out = self.run_case("MODE:ok")
+        seen = json.loads((Path(r["workspace_kept"]) / "ws" / "seen.json").read_text())
+        settings = self.settings_in(seen)
+        self.assertTrue(settings["permissions"]["blockReadsOutsideWorkingDirectories"])
+        self.assertNotIn("additionalDirectories", settings["permissions"])
+        shutil.rmtree(r["workspace_kept"], ignore_errors=True)
+
+    def test_case_can_start_in_a_subdirectory_with_the_root_added(self):
+        case = case_from("MODE:ok", fixture="poc-log-specs", cwd="sub/deep", add_root_dir=True,
+                         graders=[{"type": "file_exists", "path": "poc-spec/LOG.md"}])
+        out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, str(out), True)
+        r = runner.run_once(case, 1, ROOT, self.plugin, "dummy-token", out, EVALS / "fixtures",
+                            claude_cmd=(sys.executable, str(FAKE)), keep=True)
+        self.addCleanup(shutil.rmtree, r["workspace_kept"], True)
+        self.assertEqual(r["status"], "ok", r.get("reason"))  # the isolation check accepts a subdirectory start
+        ws = Path(r["workspace_kept"]) / "ws"
+        seen_path = ws / "sub" / "deep" / "seen.json"
+        self.assertTrue(seen_path.is_file(), "the process did not start in sub/deep")
+        self.assertFalse((ws / "seen.json").exists())
+        settings = self.settings_in(json.loads(seen_path.read_text()))
+        self.assertEqual(settings["permissions"]["additionalDirectories"], [str(ws)])
+        self.assertTrue(settings["permissions"]["blockReadsOutsideWorkingDirectories"])
+        self.assertTrue(r["passed"])  # graders still look at the whole workspace
+
+    def test_subdirectory_start_without_the_root_added_has_no_extra_directories(self):
+        case = case_from("MODE:ok", fixture="poc-log-specs", cwd="sub/deep",
+                         graders=[{"type": "file_exists", "path": "poc-spec/LOG.md"}])
+        out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, str(out), True)
+        r = runner.run_once(case, 1, ROOT, self.plugin, "dummy-token", out, EVALS / "fixtures",
+                            claude_cmd=(sys.executable, str(FAKE)), keep=True)
+        self.addCleanup(shutil.rmtree, r["workspace_kept"], True)
+        settings = self.settings_in(json.loads((Path(r["workspace_kept"]) / "ws" / "sub" / "deep" / "seen.json").read_text()))
+        self.assertNotIn("additionalDirectories", settings["permissions"])
 
     def test_plugin_copy_has_only_plugin_dirs(self):
         top = {p.name for p in self.plugin.iterdir()}

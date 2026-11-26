@@ -8,6 +8,7 @@ plugin directories (no evals, docs, tests, .env or .git). The only variable inhe
 from the maintainer's environment is PATH. Every run's system/init event is checked
 against an allowlist (events.check_isolation).
 """
+import copy
 import datetime
 import hashlib
 import json
@@ -211,15 +212,19 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
         if parents:
             raise RunnerError("instruction files above the workspace would be loaded: %s" % ", ".join(parents))
         make_workspace(Path(fixtures_dir) / case.fixture, ws, case.git, home)
+        run_cwd = ws / case.cwd  # the session starts here, the diff and the graders still look at the whole workspace
+        settings = copy.deepcopy(SETTINGS)
+        if case.add_root_dir:
+            settings["permissions"]["additionalDirectories"] = [str(ws)]
         before = snapshot(ws)
         cmd = list(claude_cmd) + [
             "-p", case.prompt, "--plugin-dir", str(plugin_dir),
-            "--settings", json.dumps(SETTINGS),
+            "--settings", json.dumps(settings),
             "--allowedTools"] + list(case.allowed_tools) + [
             "--output-format", "stream-json", "--verbose", "--max-budget-usd", str(case.max_cost_usd)]
         stdout, stderr, code, timed_out = "", "", None, False
         try:
-            proc = subprocess.run(cmd, cwd=str(ws), env=isolated_env(home, token), capture_output=True,
+            proc = subprocess.run(cmd, cwd=str(run_cwd), env=isolated_env(home, token), capture_output=True,
                                   text=True, timeout=case.timeout_s)
             stdout, stderr, code = proc.stdout, proc.stderr, proc.returncode
         except subprocess.TimeoutExpired as exc:
@@ -243,7 +248,7 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
         elif not summary["has_init"] or not summary["has_result"]:
             result.update(status="harness_failure", reason="no init or result event (exit %s)" % code)
         else:
-            violations = ev.check_isolation(init, config_dir=str(home / "cc"), cwd=str(ws))
+            violations = ev.check_isolation(init, config_dir=str(home / "cc"), cwd=str(run_cwd))
             if violations:
                 result.update(status="invalid", reason="; ".join(violations))
             elif summary["result_subtype"] == "error_max_budget_usd" or summary["terminal_reason"] == "budget_exhausted":

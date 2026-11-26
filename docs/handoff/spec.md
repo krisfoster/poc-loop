@@ -1,6 +1,6 @@
 # Spec: hand-off state, so a fresh session can pick a PoC up
 
-Status: draft 1. Branch: `handoff-state-spec`, off `main` at `0317448` (v0.2.1). Nothing here is implemented. The "Decisions for the maintainer" section lists what must be settled before a plan is written.
+Status: draft 2. Branch: `handoff-state-spec`, off `main` at `0317448` (v0.2.1). Nothing here is implemented. The five maintainer decisions are recorded in "Decisions" (all taken as recommended, 2026-11-26). The plan is `docs/handoff/plan.md`.
 
 How to read the evidence. Statements about the plugin come from reading `skills/poc-checkpoint`, `skills/poc-log`, `skills/poc-help`, `skills/poc-start`, `docs/workflow.md` and `docs/layout/spec.md` on `main` at `0317448`. Statements about Claude Code come from its docs and are marked **(docs)**: they are untested until the plan's probe phase runs them, and the docs were read through a summarising fetch, so check the wording before quoting them outside this repo.
 
@@ -56,10 +56,10 @@ Four points in the loop end a phase. Each names the command that ends it, what i
 A new optional line in the `LOG.md` entry format, written only by the boundary commands above:
 
 ```
-- State: branch <name> at <short sha>; uncommitted: <none | list of at most 5 paths>; unmerged worktrees: <none | branch and path>; waiting on you: <none | the decision>; resume: <one command or sentence>
+- State: branch <name> at <short sha>; uncommitted: <none | list of at most 5 paths>; unmerged worktrees: <none | branch names>; waiting on you: <none | the decision>; resume: <one command or sentence>
 ```
 
-- **Sources.** Branch, short sha and uncommitted paths come from `git -C "<root>" rev-parse --abbrev-ref HEAD`, `git -C "<root>" rev-parse --short HEAD` and `git -C "<root>" status --porcelain`. Unmerged worktrees come from `git -C "<root>" worktree list --porcelain` and a `git -C "<root>" log --oneline <branch> --not HEAD` per `.claude/worktrees/` entry, which is the state `poc-build` leaves behind (v0.2.1). "Waiting on you" comes from the conversation and is `none` when nothing was said. A process the user says is running is recorded under "waiting on you".
+- **Sources.** Branch, short sha and uncommitted paths come from `git -C "<root>" rev-parse --abbrev-ref HEAD`, `git -C "<root>" rev-parse --short HEAD` and `git -C "<root>" status --porcelain`. Unmerged worktrees come from `git -C "<root>" worktree list --porcelain` and a `git -C "<root>" log --oneline <branch> --not HEAD` per `.claude/worktrees/` entry, which is the state `poc-build` leaves behind (v0.2.1). Only the branch name is stored. The path is printed to the user and not written to the file, so the entry holds no local path. "Waiting on you" comes from the conversation and is `none` when nothing was said. A process the user says is running is recorded under "waiting on you".
 - **Never recorded.** Values of environment variables, file contents, token or key paths, customer names when the repo is public.
 - **Older logs.** An entry without `State:` is valid. Every reader treats a missing State as "unknown", not "clean".
 - **Format.** One line, so the existing "last 40 lines of `LOG.md`" read always includes it.
@@ -102,19 +102,21 @@ Manual and cold-start (paid, single runs, headless): checkpoint on a scratch PoC
 - **A longer closing ritual.** Every iterate or pivot now takes a checkpoint. Mitigation: the State block is one line, gathered with three read-only git calls.
 - **Model-written State is wrong.** Git facts are read, not recalled. "Waiting on you" is the only judgement, and a stale or empty value is flagged by the comparison, not trusted.
 - **`pause` is a new loop word.** `poc-log` and `poc-help` must accept it, or older copies of the docs mislead. Covered by the tests above.
-- **A recorded worktree path is a local path.** The State line can hold a path under the user's home. `LOG.md` already can, and `poc-spec/` is covered by the packager warning. The plan must decide whether to record the branch only.
+- **Branch names can be descriptive.** `worktree-agent-<id>` is neutral, a user's own branch name may not be. `LOG.md` already can hold such text and `poc-spec/` is covered by the packager warning.
 - **Interactive behaviour is unmeasured.** Everything measured so far is headless on Claude Code 2.1.325. Whether the model reads `CLAUDE.md` the same way after `/clear` interactively is the thing option D cannot show.
 
-## Decisions for the maintainer
+## Decisions
 
-1. **New outcome `pause`, or a separate command.** Recommended: `pause` on `poc-checkpoint`, so there is still one command that ends a phase. The alternative is a new `/spike-loop:poc-handoff <topic>` (a 13th command, no overload of the loop's decision words).
-2. **Does `poc-log` write State.** Recommended: no, only `poc-checkpoint`, to keep one writer.
-3. **Record the worktree path or only its branch.** Recommended: branch only, with the path printed to the user but not stored.
-4. **Version.** Recommended: 0.3.0, because the `LOG.md` format and a command's outcomes change.
-5. **Whether option C is built later** if the cold-start check says the wiring is not enough.
+Taken 2026-11-26, each as recommended in draft 1.
+
+1. **`pause` is a new outcome of `poc-checkpoint`.** One command still ends a phase. No 13th command.
+2. **Only `poc-checkpoint` writes State.** `poc-log` does not, so there is one writer. A Decision of iterate, pivot or pause in `poc-log` points at `poc-checkpoint`.
+3. **Only the worktree's branch is stored**, never its path.
+4. **Version 0.3.0**, because the `LOG.md` format and a command's outcomes change.
+5. **Option C (a `SessionStart` hook) is built later, only if the cold-start check shows the `CLAUDE.md` wiring is not enough.** Not part of this change.
 
 ## Open questions
 
 - Whether a plugin `SUMMARY.md` or hand-off should be allowed to name a deal when the PoC is tied to one (today the rule is: not in a public repo).
-- Whether tier 1 PoCs need `pause` at all, or only tier 2.
+- Whether tier 1 PoCs need `pause` at all. Provisional answer in the plan: yes, one behaviour for all tiers, since a clear is just as likely in tier 1.
 - The cap on hand-off length (40 lines is a guess).

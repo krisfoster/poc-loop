@@ -1,9 +1,7 @@
 ---
 name: poc-build
-description: Runs the implementer agent in an isolated worktree on one bounded chunk of an approved plan. Use only when the user types /poc-build with the task and a one-sentence done condition.
+description: Runs the implementer agent in an isolated git worktree on one bounded chunk of an approved plan. Use only when the user types /poc-build with the task and a one-sentence done condition.
 disable-model-invocation: true
-context: fork
-agent: spike-loop:implementer
 argument-hint: "<task> | done when <condition>"
 ---
 Implement this chunk: "$ARGUMENTS".
@@ -12,6 +10,8 @@ Implement this chunk: "$ARGUMENTS".
 
 File paths named in the task are relative to the repo root.
 
-You have no conversation history. The text above must contain the task and a done condition. If either is missing, reply only with `NEEDS INPUT: give me the task and a one-sentence done condition`. Otherwise stay inside the stated scope, run the verification command if one is given, and report using your output contract. Do not push or open a pull request.
+1. **Check the arguments.** They must hold a task and a one-sentence done condition. If either is missing, reply only with `NEEDS INPUT: give me the task and a one-sentence done condition`, then the `Next:` line below.
+2. **Call the agent.** Find the repo root, then call the `spike-loop:implementer` agent once through the Agent tool (do not run it as a fork of this skill: a forked skill ran it in the main working tree, so the agent's `isolation: worktree` was not applied). The agent has no conversation history, so the brief holds the task, the done condition, the verification command if the user gave one, and the repo root as an absolute path. Tell it not to push or open a pull request.
+3. **Report.** Show the agent's report as returned, then say where the change is: the worktree path and branch from the Agent tool result, or that no worktree was reported. The worktree branches from the repo's default branch, not from the current branch, so uncommitted work and unmerged branches are not in it. A user who needs them in it can commit first or set `worktree.baseRef` to `"head"`. The change stays in the worktree until the user brings it over. Do not merge, cherry-pick or copy it, and do not remove the worktree.
 
-End with one line starting `Next:` (inside your line cap): `/spike-loop:poc-verify` to check the chunk, or after a `NEEDS INPUT` reply, `/spike-loop:poc-build <task> | done when <condition>` with the missing part.
+End with one line starting `Next:`: `git merge <branch>` (the branch you reported) and then `/spike-loop:poc-verify` to check the chunk, or after a `NEEDS INPUT` reply, `/spike-loop:poc-build <task> | done when <condition>` with the missing part.

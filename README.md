@@ -16,7 +16,7 @@ Status: 0.2.0, early. The measurements are one run per variant on one small task
 | `/spike-loop:poc-sources` | One-time setup and later updates of the internal sources the researcher may read, see [docs/updating-sources.md](docs/updating-sources.md) |
 | `/spike-loop:poc-review` | Independent review of a diff or PoC (Opus) |
 | `/spike-loop:poc-debug` | Root cause after a failed fix, in a read-only subagent |
-| `/spike-loop:poc-build` | One bounded chunk of an approved plan, in a git worktree |
+| `/spike-loop:poc-build` | One bounded chunk of an approved plan, built in a separate git worktree (it branches from the default branch, and you merge the result) |
 | `/spike-loop:poc-package` | README, run steps, `.env.example`, clean-clone test, secret scan |
 | `/spike-loop:poc-harden` | Review, then package, then final gate. Lean path for small PoCs, full path with `full` |
 | `/spike-loop:poc-checkpoint` | End-of-session summary, and `SUMMARY.md` on stop or harden |

@@ -1,7 +1,7 @@
 {
   "name": "spike-loop",
   "description": "A small PoC workflow for Claude Code: write down the question and the success check, build in a timeboxed loop, verify and review with cheap isolated subagents, then package for handoff. Includes a first-use setup for the internal document sources the researcher may read.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Kris Foster"
   },

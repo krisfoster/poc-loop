@@ -20,6 +20,7 @@ WIRING = 'Docs folder: `poc-spec/`. All paths are relative to the repo root. At 
 LEGACY_NOTE = 'Older layout: POC.md and LOG.md are at the repo root. It works as is. To move them: mkdir poc-spec && git mv POC.md LOG.md poc-spec/ (use mv if they are untracked), then update CLAUDE.md.'
 WARNING_NEW = 'poc-spec/ would travel with this repo (<n> files tracked or not ignored) and this PoC is public or tied to a deal. LOG.md can hold customer names. Add poc-spec/ to .gitignore and run git rm -r --cached poc-spec before sharing. Anything already pushed stays in history.'
 WARNING_OLD = 'POC.md and LOG.md would travel with this repo and this PoC is public or tied to a deal. LOG.md can hold customer names. Add both to .gitignore and run git rm --cached POC.md LOG.md before sharing. Anything already pushed stays in history.'
+NO_OVERWRITE = 'If `poc-spec/POC.md`, `poc-spec/LOG.md` or `verify.sh` already exists, or a `POC.md` or `LOG.md` sits at the repo root (an older PoC), stop and ask.'
 
 # The packager's four git ls-files commands name the document files on purpose, in both layouts.
 LS_FILES_COMMANDS = (
@@ -48,6 +49,8 @@ def exempt_snippets(name):
         snippets += (RULE_B,)
     if name == POC_HELP:
         snippets += (LEGACY_NOTE,)
+    if name == POC_START:
+        snippets += (NO_OVERWRITE,)
     if name == PACKAGER:
         snippets += (WARNING_NEW, WARNING_OLD) + LS_FILES_COMMANDS
     return snippets
@@ -111,6 +114,7 @@ def spec_blocks():
         "LEGACY_NOTE": tick(r"`poc-help` prints one line when it finds the root layout: `([^`]+)`"),
         "WARNING_NEW": tick(r"^New layout: `([^`]+)`$"),
         "WARNING_OLD": tick(r"^Older layout: `([^`]+)`$"),
+        "NO_OVERWRITE": quote("If `poc-spec/POC.md`, `poc-spec/LOG.md` or `verify.sh` already exists"),
     }
 
 
@@ -119,7 +123,8 @@ class SpecAndConstantsTest(unittest.TestCase):
         got = spec_blocks()
         problems = []
         for name, value in (("RULE_A", RULE_A), ("RULE_B", RULE_B), ("WIRING", WIRING),
-                            ("LEGACY_NOTE", LEGACY_NOTE), ("WARNING_NEW", WARNING_NEW), ("WARNING_OLD", WARNING_OLD)):
+                            ("LEGACY_NOTE", LEGACY_NOTE), ("WARNING_NEW", WARNING_NEW), ("WARNING_OLD", WARNING_OLD),
+                            ("NO_OVERWRITE", NO_OVERWRITE)):
             if got[name] != value:
                 problems.append("%s differs from %s (spec has %r)" % (name, rel(SPEC_PATH), got[name]))
         fail_with(problems)
@@ -216,6 +221,8 @@ class PocStartTest(unittest.TestCase):
                     problems.append("poc-start write step does not name %s" % need)
         if WIRING not in text:
             problems.append("poc-start lacks the wiring block verbatim")
+        if NO_OVERWRITE not in text:
+            problems.append("poc-start lacks the never-overwrite sentence verbatim")
         if "write the success check from poc-spec/POC.md" not in text:
             problems.append("poc-start verify.sh stub does not point at poc-spec/POC.md")
         fail_with(problems)

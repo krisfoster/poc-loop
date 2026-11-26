@@ -73,7 +73,7 @@ def main(src, dst):
         if (is_agent and name in T.RULE_B_AGENTS) or (not is_agent and name in T.RULE_B_SKILLS):
             text += "\n" + T.RULE_B + "\n"
         if rel == "skills/poc-start/SKILL.md":
-            text += "\n" + T.WIRING + "\n"
+            text += "\n" + T.WIRING + "\n" + T.NO_OVERWRITE + "\n"
         if rel == "skills/poc-help/SKILL.md":
             text += "\n" + T.LEGACY_NOTE + "\n"
         if rel == "agents/packager.md":

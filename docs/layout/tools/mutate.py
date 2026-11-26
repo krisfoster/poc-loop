@@ -116,6 +116,8 @@ CASES = [
     ("folder drifts to poc_spec/", append("README.md", "Files live in poc_spec/ now."), {T_NAME}),
     ("poc-start write step loses the log path", in_write_step("poc-spec/LOG.md", "LOG.md"), {T_START, T_PATHS}),
     ("poc-start loses the wiring block", swap(T.POC_START, T.WIRING, ""), {T_START}),
+    ("poc-start loses the never-overwrite sentence", swap(T.POC_START, T.NO_OVERWRITE, ""), {T_START}),
+    ("never-overwrite sentence pasted into poc-log", append("skills/poc-log/SKILL.md", T.NO_OVERWRITE), {T_PATHS}),
     ("packager warning line broken", swap(T.PACKAGER, T.WARNING_NEW, T.WARNING_NEW.replace("would travel with this repo (", "would travel with the repo (")), {T_WARN, T_PATHS}),
     ("packager --others command weakened", swap(T.PACKAGER, LS_OTHERS, LS_OTHERS.replace("--others --exclude-standard", "--others")), {T_WARN, T_PATHS}),
     ("packager drops the tracked-file command", swap(T.PACKAGER, LS_TRACKED, ""), {T_WARN}),

@@ -2,12 +2,13 @@
 
 A small PoC workflow for [Claude Code](https://claude.com/claude-code), packaged as a plugin. Write down the question and the success check, build in a timeboxed loop, verify and review with cheap isolated subagents, then package for handoff.
 
-Status: 0.1.1, early. The measurements are one run per variant on one small task, so read them as indicative only: see [how to read them](docs/measurements.md#how-to-read-this).
+Status: 0.1.2, early. The measurements are one run per variant on one small task, so read them as indicative only: see [how to read them](docs/measurements.md#how-to-read-this).
 
 ## What you get
 
 | Command | Does |
 |---|---|
+| `/spike-loop:poc-help` | Lists the commands, explains one (`/spike-loop:poc-help verify`), and says where your PoC stands and what to run next |
 | `/spike-loop:poc-start` | Interviews you, then writes `POC.md` (question, success check, ranked risks, scope), `LOG.md` and a failing `verify.sh` stub |
 | `/spike-loop:poc-log` | Appends a short dated entry to `LOG.md` and shows time used against the timebox |
 | `/spike-loop:poc-verify` | Runs `verify.sh` or the project's own check in a Haiku subagent, returns pass or fail with only the relevant errors |
@@ -19,6 +20,8 @@ Status: 0.1.1, early. The measurements are one run per variant on one small task
 | `/spike-loop:poc-package` | README, run steps, `.env.example`, clean-clone test, secret scan |
 | `/spike-loop:poc-harden` | Review, then package, then final gate. Lean path for small PoCs, full path with `full` |
 | `/spike-loop:poc-checkpoint` | End-of-session summary, and `SUMMARY.md` on stop or harden |
+
+Every command ends with a line starting `Next:` that names the command to run next, so you do not have to remember the flow. Run `/spike-loop:poc-help` any time to see the commands and where the current PoC stands.
 
 Seven subagents back these (`verifier`, `reviewer`, `reviewer-lite`, `debugger`, `researcher`, `packager`, `implementer`). The research and review ones cannot edit files or write to a connector. They do keep `Bash` and web access, so their read-only rule is a prompt rule, not a sandbox: do not point them at untrusted content you would not paste into a chat. See [docs/workflow.md](docs/workflow.md) for how the pieces fit.
 

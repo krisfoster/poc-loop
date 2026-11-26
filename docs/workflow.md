@@ -10,6 +10,8 @@ No framework. Each PoC carries a question, and a small loop answers it. Three fi
 
 ## The loop
 
+Lost? `/spike-loop:poc-help` lists the commands and reads `POC.md` and `LOG.md` to say what to run next. Every command also ends with a `Next:` line.
+
 1. **Start** (about 10 minutes). `/spike-loop:poc-start`. It asks the tier, whether the PoC is tied to a deal, and interviews you for the question, the riskiest assumptions, how you will know it worked, and the timebox. Read and correct `POC.md`: that review matters most.
 2. **Research** (only if the question depends on facts). `/spike-loop:poc-research <question>`. Public docs from vendor sources, internal documents from the sources you set up. Returns a cited half page.
 3. **Build** (timeboxed, one unit of work per session). In the main session, staying within `POC.md`. New ideas go in `LOG.md` under Later. `/spike-loop:poc-build <task> | done when <condition>` hands a bounded chunk to an isolated worktree.

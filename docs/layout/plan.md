@@ -1,6 +1,6 @@
 # Plan: implement the `poc-spec/` layout and repo-root paths
 
-Spec: `docs/layout/spec.md` (draft 2, read it first, its audit table is the task source). Review record: `docs/layout/review.md`. Branch: `docs-layout`, worktree `../spike-loop-layout`, fast-forwarded to `main` at `6dec01e` on 2026-11-26 (it was cut from `e1f31b8`). Status: Phase R, task 0.1 and task 0.4 done. Probes 0.2 and 0.3 wait for the maintainer's decision on paid single runs. R.3 is due at Gate 0. Target release: 0.2.0.
+Spec: `docs/layout/spec.md` (draft 2, read it first, its audit table is the task source). Review record: `docs/layout/review.md`. Branch: `docs-layout`, worktree `../spike-loop-layout`, fast-forwarded to `main` at `6dec01e` on 2026-11-26 (it was cut from `e1f31b8`). Status: Phase R, tasks 0.1 and 0.4, and Phase 1 (Gate 1 passed, results in `docs/layout/findings.md`) done. Probes 0.2 and 0.3 wait for the maintainer's decision on paid single runs. R.3 is due at Gate 0. Target release: 0.2.0.
 
 ## Ground rules
 
@@ -44,7 +44,7 @@ Order matters: the baseline audit runs after the branch base is settled, because
 
 **Gate 0.** The branch base is settled. The probes either confirm Rule A as written or have changed it. The audit table covers every hit in 0.4. Then task R.3 runs.
 
-## Phase 1: tests first
+## Phase 1: tests first (done 2026-11-26, Gate 1 passed)
 
 One new file, `tests/test_docs_layout.py`, using only the standard library (same style as `tests/test_skills_contract.py`). The rule texts live in the test file as constants, and one test checks that the same text sits in `docs/layout/spec.md`.
 

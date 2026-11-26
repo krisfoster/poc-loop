@@ -50,3 +50,40 @@ Files with no hit on any pattern: `poc-build`, `poc-debug`, `poc-sources`, `agen
 | Everything else | All other hits in the output are covered by a row in the spec's table (`poc-start` lines 3, 14, 17 to 19, 23, 46, 50, 65 to 71; `poc-log` lines 3, 13 to 17; `poc-checkpoint` lines 3, 13 to 16, 18, 19; `poc-package` lines 9, 11; `poc-review` line 11; `poc-research` line 16; `research-protocol` line 13; `agents/packager.md` lines 13, 20, 23; `reviewer-lite` line 34; `verifier` lines 11, 14; `README.md` and `docs/workflow.md`) | None |
 
 No hit was found that the spec's table missed, apart from the line-number drift above. The post-change audit (plan task 3.1) compares against this output.
+
+## Phase 1: tests first (done 2026-11-26)
+
+**What was built.** `tests/test_docs_layout.py` (12 tests, standard library only). The rule texts in it are generated from `docs/layout/spec.md`, and `test_constants_equal_the_spec` fails if they drift. `SPIKE_LAYOUT_ROOT` points the tests at another copy of the tree. Two helper scripts in `docs/layout/tools/`: `make_standin.py` builds a mechanically compliant stand-in of the plugin tree (not the implementation, only a proof the tests can pass) and `mutate.py` runs the mutation check. Plan task 3.2 re-runs `mutate.py` on the real tree after Phase 2.
+
+**1.7 Red baseline** (real tree, `docs-layout` at `6a8cbfd` plus the new test file). `python3 -m unittest discover -s tests` gives 41 tests, 7 failures. The 7 failing tests are the new ones, and each message names the file and line:
+
+| Test (spec number) | Result | Problem lines reported |
+|---|---|---|
+| Rule A in every skill and agent (1) | FAIL | 18 (11 skills and 7 agents) |
+| Rule B in every file that resolves the docs folder (2) | FAIL | 8 |
+| No hard-coded root path (3) | FAIL | 53 |
+| No vague base (4) | FAIL | 11 |
+| `poc-start` write step, wiring, stub (7) | FAIL | 4 |
+| Packager warning and its limits (8) | FAIL | 7 |
+| README and workflow use the new paths (9) | FAIL | 18 |
+| Root files stay at the root (5) | ok, guard | 0 |
+| Folder name is exactly `poc-spec/` (6) | ok, guard | 0 |
+| Constants equal the spec (10) | ok | 0 |
+| Every skill listed for Rule A or exempt | ok | 0 |
+| `poc-start` does not carry Rule B | ok | 0 |
+
+The suite is red on this branch on purpose until Phase 2. Nothing else is affected: the 29 tests that were green are still green.
+
+**Gate 1: passed.**
+
+1. *The tests can pass.* On the stand-in tree all 12 pass.
+2. *The tests catch what they are for.* `python3 docs/layout/tools/make_standin.py . <dir>` then `python3 docs/layout/tools/mutate.py <dir>`: 25 deliberate wrong edits each fail exactly the intended test, and 4 negative controls (a `CHANGELOG.md` mention in the README, "the current PoC" in a description, a README line that names `poc-spec/POC.md`, a README line with "older layout") fail nothing. Result: 29 rows, 0 wrong. The edits cover a reworded Rule A and Rule B, a bare `LOG.md` in a body and in frontmatter, a hard-coded `poc-spec/POC.md`, `pwd` and "current directory" and "current project", `poc-spec/SUMMARY.md` and `<docs>/verify.sh`, `specs/`, `spec/` and `poc_spec/`, a lost log path and wiring block in `poc-start`, a broken warning line and three weakened `git ls-files` checks, bare names in the README and workflow, drift between the spec and the constants, and a new skill with no Rule A.
+
+**Defects in the tests found by the stand-in and the mutation run (all fixed before the commit):**
+
+| Defect | How it showed | Fix |
+|---|---|---|
+| Test 3 flagged the packager's own `git ls-files` commands, which name `POC.md`, `LOG.md` and `poc-spec/POC.md` on purpose | The stand-in failed test 3 | The four commands are exempt, and only when verbatim |
+| Test 8 required a bare `git ls-files`, which the packager's existing clean-clone step already contains, so it would pass without the new check | Review of the red baseline | The spec now names the four exact commands and test 8 requires them |
+| Spec said a drift to `.poc/` is caught by test 6, but a name not ending in `spec/` or `specs/` cannot be | Writing test 6 | Spec text corrected. Test 7 still requires the exact `poc-spec/` paths in `poc-start` |
+| Three mutation expectations were wrong (an edited Rule B, warning line or command also fails test 3, because the exemption is verbatim; one edit hit the wrong line) | First mutation runs | Expectations and the edit corrected. The verbatim effect is kept on purpose and documented in `mutate.py` |

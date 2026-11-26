@@ -2,15 +2,15 @@
 
 A small PoC workflow for [Claude Code](https://claude.com/claude-code), packaged as a plugin. Write down the question and the success check, build in a timeboxed loop, verify and review with cheap isolated subagents, then package for handoff.
 
-Status: 0.1.2, early. The measurements are one run per variant on one small task, so read them as indicative only: see [how to read them](docs/measurements.md#how-to-read-this).
+Status: 0.2.0, early. The measurements are one run per variant on one small task, so read them as indicative only: see [how to read them](docs/measurements.md#how-to-read-this).
 
 ## What you get
 
 | Command | Does |
 |---|---|
 | `/spike-loop:poc-help` | Lists the commands, explains one (`/spike-loop:poc-help verify`), and says where your PoC stands and what to run next |
-| `/spike-loop:poc-start` | Interviews you, then writes `POC.md` (question, success check, ranked risks, scope), `LOG.md` and a failing `verify.sh` stub |
-| `/spike-loop:poc-log` | Appends a short dated entry to `LOG.md` and shows time used against the timebox |
+| `/spike-loop:poc-start` | Interviews you, then writes `poc-spec/POC.md` (question, success check, ranked risks, scope), `poc-spec/LOG.md` and a failing `verify.sh` stub |
+| `/spike-loop:poc-log` | Appends a short dated entry to `poc-spec/LOG.md` and shows time used against the timebox |
 | `/spike-loop:poc-verify` | Runs `verify.sh` or the project's own check in a Haiku subagent, returns pass or fail with only the relevant errors |
 | `/spike-loop:poc-research` | Answers a factual question from primary sources with dates and versions. Uses your internal documents once set up |
 | `/spike-loop:poc-sources` | One-time setup and later updates of the internal sources the researcher may read, see [docs/updating-sources.md](docs/updating-sources.md) |
@@ -63,7 +63,10 @@ Public research works immediately. To let the researcher read your internal docu
 
 ## Design notes
 
-- No framework. Three files carry the state: `POC.md` (written once), `LOG.md` (append only), `verify.sh` (exits non-zero on failure). A stub that fails on purpose cannot pass by accident.
+- No framework. Three files carry the state: `poc-spec/POC.md` (written once), `poc-spec/LOG.md` (append only), `verify.sh` (exits non-zero on failure). A stub that fails on purpose cannot pass by accident.
+- Working documents live in `poc-spec/`, so one folder can be left out of a public repo or a customer hand-off. `README.md`, `CLAUDE.md`, `verify.sh`, `.env.example` and `SUMMARY.md` stay at the repo root. The packager warns when `poc-spec/` would travel with a PoC that is public or tied to a deal.
+- Older layout: a PoC started before 0.2.0 has `POC.md` and `LOG.md` at the repo root. It works as is. To move it, run `mkdir poc-spec && git mv POC.md LOG.md poc-spec/` (use `mv` if they are untracked) and update the paths in the `CLAUDE.md` section that `/spike-loop:poc-start` wrote. Nothing is moved for you.
+- Commands find the repo root with git, so they work from a subdirectory as long as the session may use the root. If one is refused for that reason it says so: start the session at the repo root, or run `/add-dir` with the root. The shell snippets assume a POSIX shell, and Windows is untested.
 - Subagents get no conversation history, so each slash command takes its target in the arguments.
 - Auto-delegation by description proved unreliable in testing (delegated on 2 of 10 prompts that should), so every agent has an explicit slash command.
 - Connectors are allowlisted by exact tool name, never by wildcard, because a plugin agent that omits `tools` inherits every tool including writes.

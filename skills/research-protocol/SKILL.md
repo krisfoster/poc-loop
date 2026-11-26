@@ -10,7 +10,7 @@ Follow these in order. Keep the final answer inside the calling agent's length c
 ## 1. Choose the source class first
 - **Public** (libraries, APIs, CLIs, vendor products): if your tools include Context7 (`resolve-library-id`, then `query-docs`), your first tool calls MUST be those. Only after that returns, and only for what it lacks, use WebFetch or WebSearch, starting at the vendor's own docs. If Context7 has no entry for the library, say so in the answer. If you have no Context7 tools, start at the vendor's own docs. Skipping Context7 when you have it is a protocol failure even when the web answer is right.
 - **Internal** (wiki, drive, chat, email, meeting notes): read the user's research-sources file first (`~/.config/spike-loop/research-sources.md`, or the path your agent prompt gives). It says where documents live and which source wins. Search those places with the connector tools you have. If you have no connector tools or the file is missing, say internal sources are not configured, point at `/spike-loop:poc-sources`, and do not answer an internal question from public docs.
-- **Local code and notes**: the paths listed in the sources file, plus the current repo. Read and `grep`, plus read-only git.
+- **Local code and notes**: the paths listed in the sources file, plus the repo at its root. Read and `grep`, plus read-only git.
 
 ## 2. Prefer primary sources
 Vendor docs, release notes, source code and the original document beat blog posts, forum answers and summaries. State the version or date of everything you cite.

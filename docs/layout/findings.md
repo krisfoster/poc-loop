@@ -87,3 +87,46 @@ The suite is red on this branch on purpose until Phase 2. Nothing else is affect
 | Test 8 required a bare `git ls-files`, which the packager's existing clean-clone step already contains, so it would pass without the new check | Review of the red baseline | The spec now names the four exact commands and test 8 requires them |
 | Spec said a drift to `.poc/` is caught by test 6, but a name not ending in `spec/` or `specs/` cannot be | Writing test 6 | Spec text corrected. Test 7 still requires the exact `poc-spec/` paths in `poc-start` |
 | Three mutation expectations were wrong (an edited Rule B, warning line or command also fails test 3, because the exemption is verbatim; one edit hit the wrong line) | First mutation runs | Expectations and the edit corrected. The verbatim effect is kept on purpose and documented in `mutate.py` |
+
+## 0.2 and 0.3 Behaviour probes (done 2026-11-26)
+
+**Run.** `docs/layout/tools/probes/probe_run.py`, a standalone runner (the Phase 1 harness cannot start a case below the workspace root, see the last table) with a throwaway plugin (`probe`, in `docs/layout/tools/probes/plugin/`) so the results describe Claude Code and not the spike-loop skills. Claude Code 2.1.325, Haiku (the fork runs reported Sonnet in the init event, not investigated), isolated HOME, the subscription token read by the harness helper and never printed. One run per probe, 17 runs, about $0.04 in total on the plan allowance. Anthropic's terms on scripted use of a subscription were still unread, and the maintainer approved single runs. Raw event logs stay in the session scratch directory because they contain local paths.
+
+**Fixture.** A repo with `verify.sh` and `poc-spec/` at the root, `sub/deep/`, an untracked nested git repo `nested/`, and a linked worktree `wt/`. Paths below are written `<root>`, `<start>` (the directory the session was launched in) and `<work>`.
+
+| ID | Question | Observation |
+|---|---|---|
+| R1 | Main session started in `<root>/sub/deep` | `pwd` is `<start>`. `git rev-parse --show-toplevel` is `<root>`. A lone `cd "<root>"` returns `Shell cwd was reset to <start>`, and the next call's `pwd` is `<start>`. The compound `cd "<root>" && pwd && ls verify.sh && ./verify.sh` ran in `<root>` |
+| R2, R2b | Forked skill (`context: fork`, `agent:`) from the same directory | The agent's `pwd` is `<start>`, the same as the session. Its `git rev-parse --show-toplevel` is `<root>`. The compound `cd "<root>" && ...` worked in the agent. Persistence of a lone `cd` is **not decided**: both times the agent issued the `cd` and the `pwd` in the same turn (it said so the second time) despite an instruction to go one at a time |
+| R3 | Session started in the nested repo | `--show-toplevel` is the nested repo, not the outer one. `git -C "<outer>/sub/deep" rev-parse --show-toplevel` is the outer root |
+| R4 | Session started in a linked worktree | `--show-toplevel` is the worktree. `--git-dir` is `<root>/.git/worktrees/wt` and `--git-common-dir` is `<root>/.git`. A lone `cd "<root>"` is reset to the worktree |
+| R5 | `` !`cmd` `` in a skill body (main session) | Works. `` !`pwd` `` printed `<start>`. `` !`git rev-parse --show-toplevel` `` printed `<root>`. `${CLAUDE_PROJECT_DIR}` printed **`<start>`, the launch directory, not the git root**. `${CLAUDE_SKILL_DIR}` printed the skill's own directory |
+| R6 | The same in a forked skill | Works the same. The agent's task text already held `<root>` |
+| R7 | Same with `disableSkillShellExecution: true` | The two injected lines became `[shell command execution disabled by policy]`. `${CLAUDE_PROJECT_DIR}` still expanded |
+| R8 | `blockReadsOutsideWorkingDirectories: true` (the Phase 1 harness setting), `Read` of `<root>/poc-spec/POC.md` from `<start>`, absolute and relative path | Both blocked: "is outside `<start>`; the ... setting blocks reads outside the working directories. Ask the user to add the directory with /add-dir, or to remove that setting". The working directory is the launch directory |
+| R16 | The same two reads with default settings | Both succeeded, no denial |
+| R9 | Grant `Bash(./verify.sh)` only, command `cd "<root>" && ./verify.sh` | Blocked: "cd in `<root>` was blocked. For security, Claude Code may only change directories to the allowed working directories for this session: `<start>`" |
+| R10 | Grant `Bash(cd *)` only, same command | "This Bash command contains multiple operations. The following parts require approval: cd "<root>", ./verify.sh" |
+| R11 | Grant `Bash(cd * && ./verify.sh)` (a pattern for the whole compound) | Same message as R10. A compound-pattern grant does not allow the compound |
+| R12 | Grants `Bash(cd *)` and `Bash(./verify.sh)` | Still blocked with the R9 message: the `cd` to a root above the launch directory is refused even when `cd` is granted |
+| R13 | R12 plus `permissions.additionalDirectories: [<root>]` | Ran in `<root>` |
+| R15 | Broad grant `Bash`, same compound | Ran in `<root>`, then `Shell cwd was reset to <start>` |
+| R14 | `"<root>/verify.sh"` by absolute path, no `cd` | Ran, but `verify.sh` saw `<start>` as its working directory |
+
+Also found:
+
+- **Every run showed extra `cc-plugin-*` plugins in the init event** (`cc-plugin-sec-default`, `cc-plugin-agents-md` and others), with an isolated HOME and config directory. Not investigated. The Phase 1 isolation allowlist already accounts for init contents, and this does not affect the layout results.
+- **`git rev-parse --git-dir` and `--git-common-dir` are not comparable as printed.** In `<root>/sub/deep` of an ordinary repo, `--git-dir` is absolute and `--git-common-dir` is `../../.git`, so a plain comparison calls every subdirectory session a linked worktree. With `--path-format=absolute` (git 2.55.0 here, the minimum git version for the flag is not checked) the two are identical in an ordinary repo and in the nested repo, and differ in the linked worktree.
+- **Not measurable headless:** whether an interactive session in default permission mode prompts for the `cd` or for each part of a compound command. The headless denials above show the same rules, so a prompt is likely, but that is an inference.
+
+**What the results mean for the spec.**
+
+| Result | Effect |
+|---|---|
+| A lone `cd` does not carry in the main session, and a compound `cd "<root>" && ...` works under a broad grant | Rule A's `cd "<root>" &&` on every command is right and necessary |
+| The root above the launch directory is outside the allowed working directories, so `cd` there is blocked under narrow grants and fixed by `/add-dir` or `additionalDirectories` | Rule A gets a stop-and-explain clause (do not work around the refusal, tell the user to start the session at the repo root or run `/add-dir "<root>"`). The goal "behaves the same from any subdirectory" holds only when the root is a permitted directory |
+| Each part of a compound command needs its own approval, and a compound-pattern grant does not work | A changelog note, and the eval cases need one grant per part |
+| `git-dir` vs `git-common-dir` compared as printed gives a false linked-worktree result in subdirectories | `poc-start` uses `--path-format=absolute` |
+| `` !`cmd` `` works in main and forked skills, and `${CLAUDE_PROJECT_DIR}` is the launch directory | A forked skill could name the root by injection. Not used in 0.2.0 (it can be disabled by policy, and the agent resolves the root with git anyway). Recorded as an option, spec open question 3 |
+| Absolute-path `verify.sh` runs in the launch directory | It is no substitute for `cd "<root>" &&` unless a `verify.sh` locates its own directory |
+| The Phase 1 harness starts every case in the workspace root with a fixed `SETTINGS` | Subdirectory eval cases need a per-case working directory, `additionalDirectories` or no `blockReads` setting, and one grant per compound part. Plan 4.4 is no longer an open question: it must be added |

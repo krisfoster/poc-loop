@@ -4,7 +4,7 @@ Status: draft 2, revised after the independent review of 2026-11-26 (see `docs/l
 
 Maintainer decisions: the folder is `poc-spec/` (always that name), `SUMMARY.md` stays at the root, existing PoCs keep working from the root, the packager warns about the folder, the version is 0.2.0, and every path is relative to the repo root.
 
-How to read the evidence. Statements about the plugin come from reading the files on `main`, plus `skills/poc-help`, `skills/poc-research`, `skills/poc-log`, `skills/poc-checkpoint` and `tests/test_skills_contract.py` as changed by `help-and-next`, which was merged to `main` on 2026-11-26 as PR #2 (`6dec01e`) after this spec was drafted from commit `0e5ad69`. The merged `poc-help` also dropped its read of other skills' files (commit `3ca0db3`), so its line numbers in the audit table are stale until plan task 0.4 re-runs the audit. Statements about Claude Code behaviour are marked **(docs)**: they come from the reviewer's reading of code.claude.com on 2026-11-26 (pages: `/docs/en/skills`, `/docs/en/sub-agents`, `/docs/en/worktrees`, `/docs/en/tools-reference`; the pages show no version). None is tested yet. Plan tasks 0.2 and 0.3 test them. Where the docs do not say, this spec says **not stated**.
+How to read the evidence. Statements about the plugin come from reading the files on `main`, plus `skills/poc-help`, `skills/poc-research`, `skills/poc-log`, `skills/poc-checkpoint` and `tests/test_skills_contract.py` as changed by `help-and-next`, which was merged to `main` on 2026-11-26 as PR #2 (`6dec01e`) after this spec was drafted from commit `0e5ad69`. The merged `poc-help` also dropped its read of other skills' files (commit `3ca0db3`), so its line numbers in the audit table are stale until plan task 0.4 re-runs the audit. Statements about Claude Code behaviour are marked **(docs)**: they come from the reviewer's reading of code.claude.com on 2026-11-26 (pages: `/docs/en/skills`, `/docs/en/sub-agents`, `/docs/en/worktrees`, `/docs/en/tools-reference`; the pages show no version). Plan tasks 0.2 and 0.3 tested several of them on 2026-11-26 (Claude Code 2.1.325, Haiku, one run per probe, details and caveats in `docs/layout/findings.md`): those are marked **(observed)**. The rest are untested. Where the docs do not say, this spec says **not stated**.
 
 ## Problem
 
@@ -19,7 +19,7 @@ A path audit found a second problem: the skills do not agree on what "here" mean
 ## Goals
 
 1. All working documents for a PoC live in one folder, `poc-spec/`, so one exclusion rule covers them.
-2. Every path in every skill and agent is relative to the repo root, defined once, so a command behaves the same from any subdirectory.
+2. Every path in every skill and agent is relative to the repo root, defined once, so a command behaves the same from any subdirectory when the repo root is a directory the session may use. When it is not, the command says so and stops (Rule A).
 3. The docs folder is resolved one way by every skill and agent.
 4. A PoC started before this change keeps working with no action from the user, and can be migrated by hand with a few lines.
 5. Free tests fail if a skill hard-codes a root document path or uses a vague "current directory" phrase.
@@ -33,6 +33,7 @@ A path audit found a second problem: the skills do not agree on what "here" mean
 - An automatic migration command. Moving a user's files without being asked is a risk this spec does not take (see "Migration").
 - Changing what `POC.md`, `LOG.md` or `SUMMARY.md` contain, or their templates beyond the paths they name.
 - PoCs that live in a subdirectory of a larger repo. The repo root is the PoC root, which is the decision.
+- Making a session started below the repo root work when its permissions exclude the root. The probes show Claude Code blocks `cd` to a directory outside the session's allowed directories under narrow grants (see Rule A). The plugin reports it and does not work around it.
 - Windows. The shell snippets assume a POSIX shell. PowerShell 5.1 has no `&&`, and `C:\` paths and symlink-resolved roots are untested. State this in the README, do not claim support.
 - The research sources file (`~/.config/spike-loop/research-sources.md`), the helper script under `${CLAUDE_SKILL_DIR}`, and the generated user-level agent file. They are user-level and plugin-level paths, outside every repo on purpose.
 
@@ -68,22 +69,23 @@ Both rules are stated here once and copied verbatim into each file that needs th
 
 ### Rule A: paths
 
-> **Paths.** Every path in this command is relative to the repo root. Find the root with `git -C "<target>" rev-parse --show-toplevel`, where `<target>` is the path given in the arguments if there is one, otherwise the directory the session was started in (an agent uses the repo root named in its brief, and outside a git repository the root is `<target>`). Shell state does not carry from one call to the next, so start every shell command with `cd "<root>" &&` unless a step names another directory. A relative path in the arguments is relative to the directory the session was started in, only to find the root. Everything else is relative to the root.
+> **Paths.** Every path in this command is relative to the repo root. Find the root with `git -C "<target>" rev-parse --show-toplevel`, where `<target>` is the path given in the arguments if there is one, otherwise the directory the session was started in (an agent uses the repo root named in its brief, and outside a git repository the root is `<target>`). Shell state does not carry from one call to the next, so start every shell command with `cd "<root>" &&` unless a step names another directory. If the shell refuses (for example `cd ... was blocked`, or an approval is declined) because the repo root is outside the directories this session may use, do not work around it: say so, and tell the user to start the session at the repo root or run `/add-dir "<root>"`. A relative path in the arguments is relative to the directory the session was started in, only to find the root. Everything else is relative to the root.
 
 Rule A goes in every skill and agent except `poc-sources`, which touches only user-level paths, and `research-protocol`, which is read inside agents that carry Rule A.
 
 Why each part is there:
 
 - `git -C "<target>"` so that `/spike-loop:poc-harden ~/repos/other` acts on the other repo, not on the session's repo.
-- `cd "<root>" &&` on every command because shell state does not carry between calls (docs, `/docs/en/sub-agents`: "`cd` commands don't persist between Bash or PowerShell tool calls" inside a subagent; `/docs/en/tools-reference`: in the main session `cd` carries over only while it stays inside the project directory, otherwise Claude Code resets to the project directory). A model that runs `cd` as one call and `./verify.sh` as the next fails. The exception ("unless a step names another directory") covers the packager's clean-clone directory and the debugger's scratch copy under `$TMPDIR`.
+- `cd "<root>" &&` on every command because a lone `cd` does not carry to the next call **(observed)**: in the main session it returns `Shell cwd was reset to <start>`, and the next `pwd` is the launch directory. The compound form runs in the root **(observed, broad grant)**. In a forked agent the lone-`cd` result is undecided, because the agent put the `cd` and `pwd` in one turn both times, and the docs say it does not persist (`/docs/en/sub-agents`). A model that runs `cd` as one call and `./verify.sh` as the next fails. The exception ("unless a step names another directory") covers the packager's clean-clone directory and the debugger's scratch copy under `$TMPDIR`.
+- The refusal clause is there because the probes showed the repo root can be outside what the session may use **(observed)**: with narrow grants, `cd "<root>" && ./verify.sh` from a subdirectory was refused ("cd in `<root>` was blocked ... may only change directories to the allowed working directories for this session: `<start>`"), even with `cd` granted. It ran when the root was added (`permissions.additionalDirectories`) and under a broad `Bash` grant. The message names `/add-dir`. Each part of a compound command needs its own grant, and a compound-pattern grant does not work **(observed)**.
 - A relative path argument is read from the session directory, only to find the root, because a root cannot be found from a path that is itself relative to the root. Open question 2 records this.
 
 How the agent learns the root depends on how it is called:
 
 - `poc-harden` calls agents through the Agent tool, so its brief names the repo root as an absolute path.
 - The forked skills (`context: fork`: `poc-build`, `poc-debug`, `poc-package`, `poc-review`, `poc-verify`) pass their body to the agent as its task, and Rule A is in both the body and the agent file, so the agent resolves the root itself.
-- Whether a forked skill could instead have the root put into its body before the model sees it is a question for task 0.3. The docs say a skill body can run a shell command and use `${CLAUDE_PROJECT_DIR}` **(docs, `/docs/en/skills`)**, and also name a setting, `disableSkillShellExecution`, that can turn this off. Not stated: whether `${CLAUDE_PROJECT_DIR}` is the git root or the directory the session was launched in. This spec does not depend on it.
-- A subagent starts in the main conversation's working directory **(docs, `/docs/en/sub-agents`)**. Not stated: the starting directory of a `context: fork` agent specifically. Task 0.2 measures it.
+- A forked skill can have the root put into its body before the model sees it **(observed)**: `` !`git rev-parse --show-toplevel` `` gave the git root in both a main-session skill and a forked skill, and `${CLAUDE_PROJECT_DIR}` was the launch directory, not the git root. With `disableSkillShellExecution: true` the command text became `[shell command execution disabled by policy]`. So injection could name the root for forked skills, but it can be switched off by policy, and the agent resolves the root with git in any case, so this spec does not use it. Open question 3.
+- A forked agent starts in the session's launch directory **(observed)**: its `pwd` was `<start>` and its `git rev-parse --show-toplevel` was the root. Task 0.2 results are in `docs/layout/findings.md`.
 - An agent with `isolation: worktree` (`implementer`) gets a worktree, whose root is the worktree. Subagent worktrees branch from the repository's default branch unless `worktree.baseRef` is set to `"head"` **(docs, `/docs/en/sub-agents` and `/docs/en/worktrees`)**, so the implementer does not see uncommitted files and may not see the current branch's commits. It does not read `POC.md` or `LOG.md`, so this does not matter today. Finding F1 on `evals-spec` records that a forked `poc-build` was seen to run in the main tree, so what the implementer sees is not settled.
 
 ### Rule B: the docs folder
@@ -124,7 +126,7 @@ An earlier draft made `poc-verify` and `poc-review` stop outside git. That was a
 
 ### `poc-start` and nested repos and worktrees
 
-`poc-start` finds the root by Rule A and then checks two things before writing anything. If the session directory is not the root, it names the root and asks whether to write there. If `git rev-parse --git-dir` differs from `git rev-parse --git-common-dir`, this is a linked worktree: it says so, names the main checkout, and asks where `poc-spec/` should live, because a worktree holds only committed files and a gitignored `poc-spec/` would be missing from every other worktree.
+`poc-start` finds the root by Rule A and then checks two things before writing anything. If the session directory is not the root, it names the root and asks whether to write there. If the two paths printed by `git rev-parse --path-format=absolute --git-dir --git-common-dir` differ, this is a linked worktree (`--path-format=absolute` is needed: in a subdirectory of an ordinary repo `--git-dir` prints an absolute path and `--git-common-dir` prints `../../.git`, so comparing them as printed gives a false positive **(observed, git 2.55.0, the minimum version for the flag is not checked)**): it says so, names the main checkout, and asks where `poc-spec/` should live, because a worktree holds only committed files and a gitignored `poc-spec/` would be missing from every other worktree.
 
 **Never overwrite** keeps its present meaning: if any file it would write exists (`poc-spec/POC.md`, `poc-spec/LOG.md`, `verify.sh`, or a root `POC.md` or `LOG.md`), it stops and asks.
 
@@ -236,13 +238,13 @@ These are text checks. They show the skills say the right thing, not that a mode
 This work depends on the Phase 2 evals (see `docs/evals/plan.md` on `evals-spec`) and changes their fixtures. The fixtures must not be built twice, so the rule for the evals branch is:
 
 - Keep `evals/fixtures/poc-log-basic` as the **old-layout** fixture. The existing case `poc-log/basic` allows only `Read`, `Edit`, `Write` and `Bash(date *)`, so under Rule A it cannot run `git rev-parse` or `cd`. The case's `allowed_tools` must gain the commands Rule A uses, and a pinned Bash grant treats a compound command (`cd "<root>" && ...`) as a different command, so the grant form is checked in task 0.2. Until that is done the case fails for a reason unrelated to the fallback. Only after it is fixed does the case test the fallback.
-- The harness setting `blockReadsOutsideWorkingDirectories` (in `evals/harness/runner.py` on `evals-spec`) may block a subdirectory case from reading the root. Task 0.2 checks it.
+- The harness setting `blockReadsOutsideWorkingDirectories` (in `evals/harness/runner.py` on `evals-spec`) blocks a subdirectory case from reading the root, by absolute or relative path **(observed)**. With default settings the same reads succeed **(observed)**. A subdirectory case needs the root added as an additional directory, or that setting off.
 - Add `poc-log-specs`, the same content under `poc-spec/`, and a case `poc-log/poc-spec-layout` whose graders read `poc-spec/LOG.md`.
 - Phase 2 cases for `poc-start`, `poc-checkpoint` and `poc-harden` use the new layout by default. Each also has one old-layout case where the stage reads files.
 - Cases to add: `poc-start` writes `poc-spec/POC.md` and `poc-spec/LOG.md` and nothing at the root except `verify.sh` and `CLAUDE.md`; `poc-start` stops without overwriting when any of its target files exists; `poc-log` stops with the half-migrated message when both layouts or a partial move are present; `poc-checkpoint stop` writes `SUMMARY.md` at the root under both layouts; `poc-log` run from a subdirectory writes to the root's docs folder and not to the subdirectory.
 - Packager cases: docs folder tracked in a public repo warns; untracked and not ignored warns; ignored and untracked is quiet; a private repo with `Deal: none` is quiet.
-- The subdirectory case needs the harness to set a per-case working directory. Not checked whether the Phase 1 runner supports it. If not, adding it is part of this work.
-- A new Bash call per command may be a new permission prompt in interactive use. Task 0.2 notes it for the changelog.
+- The subdirectory case needs a per-case working directory. The Phase 1 runner starts every case in the workspace root with a fixed `SETTINGS` object, so adding a working directory and per-case additional directories to the runner is part of this work **(observed from the runner's code, `run_once` and `SETTINGS`)**.
+- Each part of a compound command needs its own grant, so a case that runs `cd "<root>" && ...` needs `Bash(cd *)` and the second command granted separately, and for a session below the root also an additional directory **(observed)**. Whether an interactive session prompts for each part is not measurable headless, and the changelog says so.
 
 ## Sequencing
 
@@ -259,8 +261,10 @@ This work depends on the Phase 2 evals (see `docs/evals/plan.md` on `evals-spec`
 | A skill still says "current directory" | Behaves differently from a subdirectory | Test 4 fails the build |
 | Rules A and B are copied in about a dozen places and drift | Inconsistent behaviour between commands | Tests 1, 2 and 10 compare the text verbatim |
 | A model runs `cd` and the command as separate calls | `./verify.sh` not found | Rule A says to start every command with `cd "<root>" &&`. The subdirectory cases measure it |
-| A forked agent starts somewhere other than the session directory | Wrong root | Task 0.2 measures it before any edit, and Rule A resolves the root with git in any case |
-| Skill-body injection is turned off by `disableSkillShellExecution` or unavailable | The root cannot be injected | The spec does not depend on injection |
+| A session started below the repo root has permissions that exclude the root | `cd "<root>" &&` is refused | **(observed)** Rule A says to stop, explain and suggest `/add-dir`, not to work around it |
+| Each part of a compound command prompts in an interactive session | More prompts than before the change | Not measurable headless. The changelog says to expect it, and `/add-dir` or a broad grant avoids it |
+| A forked agent starts somewhere other than the session directory | Wrong root | Not the case **(observed)**: it starts in the launch directory, and Rule A resolves the root with git |
+| Skill-body injection is turned off by `disableSkillShellExecution` or unavailable | The root cannot be injected | **(observed)** the command text becomes a policy notice. The spec does not depend on injection |
 | A user wires a PoC with the old text, then migrates only the files | The main session reads a missing path at start | Migration steps say to update the wiring text. `poc-help` names both steps |
 | Half-migrated PoC, including a partial move | Command stops, user is confused | The stop message names the files and asks which to keep |
 | `poc-spec/` is gitignored in a linked worktree setup | The folder is missing from other worktrees | `poc-start` says so and asks where it should live |
@@ -273,3 +277,4 @@ This work depends on the Phase 2 evals (see `docs/evals/plan.md` on `evals-spec`
 
 1. **Reading "warn".** I read "it should warn in order to stop collisions" as the packager warning in "Packager warning", which protects the diary from travelling. If you meant a warning when `poc-spec/` already holds other content, or a clash with another tool, say so. The name `poc-spec/` already avoids a clash with a plain `specs/` folder.
 2. **Relative path arguments.** You asked for all paths to be relative to the repo root. A path argument cannot be, because the root is found from it. This spec reads a relative path argument from the directory the session was started in, only to find the root, and everything else is root-relative. Someone who types `../other-project` from a subdirectory of repo A gets repo B. Say if you want a different rule.
+3. **Inject the root into forked skills?** The probes show a forked skill can carry `` !`git rev-parse --show-toplevel` `` so the agent is told the root, and that `${CLAUDE_PROJECT_DIR}` is the launch directory, not the git root. It would save the agent one git call, but it can be disabled by policy and Rule A still needs the git fallback. Not used in 0.2.0. Say if you want it adopted later.

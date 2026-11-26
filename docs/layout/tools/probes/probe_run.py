@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Behaviour probes for docs/layout plan tasks 0.2 and 0.3.
+"""Behaviour probes for docs/layout plan tasks 0.2 and 0.3. Not self-contained: it borrows the token helper from an
+evals-spec checkout (--evals-repo).
 
 Runs a throwaway plugin (./plugin) through headless `claude -p` from several directories of a throwaway repo, one
 run per probe, and prints what each run did: the working directory in the init event, every tool call and its

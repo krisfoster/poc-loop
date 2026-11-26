@@ -52,7 +52,8 @@ def main(argv):
         fm = split_frontmatter(lines)
         counts = {}
         for name, pat in PATTERNS:
-            hits = [i for i, line in enumerate(lines, 1) if re.search(pat, line)]
+            flags = re.I if name == "vague base" else 0  # test 4 is case-insensitive too
+            hits = [i for i, line in enumerate(lines, 1) if re.search(pat, line, flags)]
             counts[name] = len(hits)
             totals[name] += len(hits)
             for i in hits:

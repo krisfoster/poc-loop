@@ -27,3 +27,26 @@ Before applying, the author re-checked the local facts it could check: `poc-rese
 Everything marked **(docs)** in the spec, and the reviewer's note that the `blockReadsOutsideWorkingDirectories` setting may block reads. The reviewer also noted that the plan's earlier claim that the probe would not trigger the scripted-use terms cannot be established while the terms are unread. The claim is removed.
 
 Second review (R.3) is due after Phase 0, on the parts Phase 0 changes.
+
+## R.3: second review (2026-11-26)
+
+Reviewer: the `reviewer` agent again, with no conclusions from the author. Scope: everything added since the first review (the Phase 1 tests and tools, the probes, the spec changes made after them). It read the raw probe event logs and checked the claims in `docs/layout/findings.md` against them, and ran the tests, the stand-in and the mutation script without writing to the repo. No blockers. Statements it took from the Claude Code docs or git release notes are marked as its reading in the spec and are untested here. The author re-checked the locally checkable facts first, see the last section of `docs/layout/findings.md`.
+
+| # | Severity | Finding | Disposition |
+|---|---|---|---|
+| 1 | MAJOR | "Shell state does not carry" over-reads the logs: every lone-`cd` probe left the session's directories, which resets the shell, and R1, R4, R2 and R2b put the `cd` and the `pwd` in one message | Applied. Rule A says the shell can be reset (and is in an agent). Spec and findings now say only R3 was a separate-turn test, and that persistence inside an agent is undecided |
+| 2 | MAJOR | Rule A covers shell commands only. File tools resolve relative paths against the launch directory (R16) | Applied. Rule A: file tools take `<root>/<path>` in full |
+| 3 | MAJOR | `cd "<root>" &&` on every command adds refusals and prompts that `git`, `date` and others do not need, the refusal clause had no agent form, the `$TMPDIR` exception was not addressed | Applied. `git -C "<root>"` for git, no `cd` for commands that need no directory, "an agent reports it and stops", the packager's `git ls-files` commands use `git -C`. The `cd` into the `$TMPDIR` clone is recorded as untested. The suggested extra `cd` plus `git` probe was not run |
+| 4 | MAJOR | Test 3 lets `poc-help` hard-code `poc-spec/` anywhere in the file | Applied. Only table rows (lines starting with `|`) |
+| 5 | MINOR | The `/add-dir` advice is not shown by a probe, and the `cd` refusal text does not name it | Applied. Reworded: the Read refusal (R8) names it, the quoted form was not tested |
+| 6 | MINOR | Eval note says `Bash(cd *)` is needed, which was not shown, and R10 shows it does not cover a `cd` outside the session's directories | Applied |
+| 7 | MINOR | Findings omit: parallel calls in R1 and R4, no reset notice for the agent and R13, why the fork runs say Sonnet, the plugins are built in | Applied, each checked against the logs |
+| 8 | MINOR | Root and worktree checks miss bare repos, submodules, `GIT_DIR`, symlinks, nested repos started at their own root | Applied: `--show-prefix` for "at the root", `git worktree list --porcelain` to name the main checkout, a nested-repo check, bare repository stops, `GIT_DIR` and submodules recorded as not handled |
+| 9 | MINOR | Test 3 exemptions apply to every file | Applied. Per file |
+| 10 | MINOR | Test 7 requires the step to be numbered exactly 5 | Applied. Any number |
+| 11 | MINOR | `mutate.py` aborts or silently no-ops on hand-written text | Applied. Targets come from the test constants, a missing target or a no-op edit is its own row |
+| 12 | MINOR | `audit.py` vague-phrase regex is case-sensitive | Applied |
+| 13 | MINOR | Stale spec sentences about tasks 0.3 and 0.4 | Applied |
+| 14 | MINOR | The probe runner is called standalone but imports the harness | Applied. Wording corrected in findings and the script |
+
+After the changes: the stand-in tree passes all 12 tests, the mutation check is 34 rows with 0 wrong (up from 29: new rows for the `poc-help` step, a pasted legacy note, capitalised "Current Directory", and a `cd`-based packager command, plus a control for `poc-help` table rows), and the real tree is still 41 tests with 7 failures, the Phase 2 work.

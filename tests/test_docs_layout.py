@@ -14,7 +14,7 @@ ROOT = Path(os.environ.get("SPIKE_LAYOUT_ROOT") or Path(__file__).resolve().pare
 SPEC_PATH = ROOT / "docs" / "layout" / "spec.md"
 
 # Rule texts, generated from docs/layout/spec.md. test_constants_equal_the_spec keeps them in step.
-RULE_A = '**Paths.** Every path in this command is relative to the repo root. Find the root with `git -C "<target>" rev-parse --show-toplevel`, where `<target>` is the path given in the arguments if there is one, otherwise the directory the session was started in (an agent uses the repo root named in its brief, and outside a git repository the root is `<target>`). Shell state does not carry from one call to the next, so start every shell command with `cd "<root>" &&` unless a step names another directory. If the shell refuses (for example `cd ... was blocked`, or an approval is declined) because the repo root is outside the directories this session may use, do not work around it: say so, and tell the user to start the session at the repo root or run `/add-dir "<root>"`. A relative path in the arguments is relative to the directory the session was started in, only to find the root. Everything else is relative to the root.'
+RULE_A = '**Paths.** Every path in this command is relative to the repo root. Find the root with `git -C "<target>" rev-parse --show-toplevel`, where `<target>` is the path given in the arguments if there is one, otherwise the directory the session was started in (an agent uses the repo root named in its brief, and outside a git repository the root is `<target>`). The shell can be reset to the start directory between calls, and is in an agent, so run a command that uses a relative path or runs a script as `cd "<root>" && <command>`, run git as `git -C "<root>" <subcommand>`, and run a command that needs no directory, such as `date`, as it is, unless a step names another directory. File tools (Read, Write, Edit, Glob, Grep) resolve a relative path against the start directory, so give them `<root>/<path>` in full. If a shell command or tool is refused (for example `cd ... was blocked`) because the repo root is outside the directories this session may use, do not work around it: say so (an agent reports it and stops), and tell the user to start the session at the repo root or run `/add-dir "<root>"`. A relative path in the arguments is relative to the directory the session was started in, only to find the root. Everything else is relative to the root.'
 RULE_B = "**Docs folder.** Check these four paths, relative to the repo root: `poc-spec/POC.md`, `poc-spec/LOG.md`, `POC.md`, `LOG.md`. If files exist only under `poc-spec/`, the docs folder `<docs>` is `poc-spec`. If they exist only at the root, `<docs>` is `.` (an older PoC, use it as is). If files exist in both places, stop, say the PoC is half-migrated, name the files, and ask which to keep (an agent reports this and stops). If none exist, follow the command's own step. `<docs>/POC.md` means `poc-spec/POC.md` or `POC.md`, and likewise `<docs>/LOG.md`."
 WIRING = 'Docs folder: `poc-spec/`. All paths are relative to the repo root. At session start read `poc-spec/POC.md` and the last 40 lines of `poc-spec/LOG.md`. Stay within `poc-spec/POC.md`. Park new ideas in `poc-spec/LOG.md` under Later. Never claim done without the output of `./verify.sh` or the manual check. Hand-offs, specs and plans for this PoC go under `poc-spec/`.'
 LEGACY_NOTE = 'Older layout: POC.md and LOG.md are at the repo root. It works as is. To move them: mkdir poc-spec && git mv POC.md LOG.md poc-spec/ (use mv if they are untracked), then update CLAUDE.md.'
@@ -23,10 +23,10 @@ WARNING_OLD = 'POC.md and LOG.md would travel with this repo and this PoC is pub
 
 # The packager's four git ls-files commands name the document files on purpose, in both layouts.
 LS_FILES_COMMANDS = (
-    "git ls-files --others --exclude-standard poc-spec/POC.md poc-spec/LOG.md",
-    "git ls-files poc-spec/POC.md poc-spec/LOG.md",
-    "git ls-files --others --exclude-standard POC.md LOG.md",
-    "git ls-files POC.md LOG.md",
+    'git -C "<root>" ls-files --others --exclude-standard poc-spec/POC.md poc-spec/LOG.md',
+    'git -C "<root>" ls-files poc-spec/POC.md poc-spec/LOG.md',
+    'git -C "<root>" ls-files --others --exclude-standard POC.md LOG.md',
+    'git -C "<root>" ls-files POC.md LOG.md',
 )
 
 # Skills without Rule A: poc-sources touches only user-level paths, research-protocol is read inside agents.
@@ -35,8 +35,27 @@ RULE_A_SKILLS = ["poc-build", "poc-checkpoint", "poc-debug", "poc-harden", "poc-
                  "poc-package", "poc-research", "poc-review", "poc-start", "poc-verify"]
 RULE_B_SKILLS = ["poc-checkpoint", "poc-harden", "poc-help", "poc-log", "poc-package", "poc-research", "poc-review"]
 RULE_B_AGENTS = ["packager"]
-# Files allowed to name poc-spec/POC.md and poc-spec/LOG.md directly (README and workflow are test 9).
-NEW_PATH_OK = {"skills/poc-start/SKILL.md", "skills/poc-help/SKILL.md"}
+POC_START = "skills/poc-start/SKILL.md"
+POC_HELP = "skills/poc-help/SKILL.md"
+PACKAGER = "agents/packager.md"
+RULE_B_FILES = {"skills/%s/SKILL.md" % n for n in RULE_B_SKILLS} | {"agents/%s.md" % n for n in RULE_B_AGENTS}
+
+
+def exempt_snippets(name):
+    """Texts that may name the document files, each only in the files that should carry it and only verbatim."""
+    snippets = ()
+    if name in RULE_B_FILES:
+        snippets += (RULE_B,)
+    if name == POC_HELP:
+        snippets += (LEGACY_NOTE,)
+    if name == PACKAGER:
+        snippets += (WARNING_NEW, WARNING_OLD) + LS_FILES_COMMANDS
+    return snippets
+
+
+def new_path_allowed(name, line):
+    """poc-spec/POC.md and poc-spec/LOG.md may be named in poc-start, and on table rows of poc-help."""
+    return name == POC_START or (name == POC_HELP and line.lstrip().startswith("|"))
 BANNED = [r"current director(?:y|ies)", r"current working director(?:y|ies)", r"current repo\b", r"current git repo\b",
           r"current project\b", r"this directory", r"\bcwd\b", r"\bpwd\b", r"\$PWD"]
 DOC_NAME = re.compile(r"(?<![\w])(POC|LOG)\.md")
@@ -138,16 +157,17 @@ class PathsTest(unittest.TestCase):
         for path in all_skills() + all_agents():
             name = rel(path)
             text = read(path)
-            for snippet in (RULE_B, LEGACY_NOTE, WARNING_NEW, WARNING_OLD) + LS_FILES_COMMANDS:
+            for snippet in exempt_snippets(name):
                 text = text.replace(snippet, "")
-            text = re.sub(r"(?m)^### (?:POC|LOG)\.md$", "", text)
+            if name == POC_START:
+                text = re.sub(r"(?m)^### (?:POC|LOG)\.md$", "", text)  # template headings name template blocks
             for lineno, line in enumerate(text.splitlines(), 1):
                 for m in DOC_NAME.finditer(line):
                     before = line[:m.start()]
                     if before.endswith("<docs>/"):
                         continue
                     if before.endswith("poc-spec/"):
-                        if name not in NEW_PATH_OK:
+                        if not new_path_allowed(name, line):
                             problems.append("%s:%d names poc-spec/%s.md directly: use <docs>/" % (name, lineno, m.group(1)))
                         continue
                     problems.append("%s:%d bare %s.md: %s" % (name, lineno, m.group(1), line.strip()[:90]))
@@ -187,9 +207,9 @@ class PocStartTest(unittest.TestCase):
     def test_write_step_names_the_new_paths_and_wiring_matches(self):  # test 7
         text = read(skill_path("poc-start"))
         problems = []
-        write = [ln for ln in text.splitlines() if re.match(r"^5\. \*\*Write\*\*", ln)]
+        write = [ln for ln in text.splitlines() if re.match(r"^\d+\. \*\*Write\*\*", ln)]
         if not write:
-            problems.append("poc-start has no '5. **Write**' step")
+            problems.append("poc-start has no numbered '**Write**' step")
         else:
             for need in ("poc-spec/POC.md", "poc-spec/LOG.md"):
                 if need not in write[0]:

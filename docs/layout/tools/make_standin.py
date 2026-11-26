@@ -18,7 +18,8 @@ REPO = HERE.parents[3]
 sys.path.insert(0, str(REPO / "tests"))
 import test_docs_layout as T  # noqa: E402  (constants only)
 
-NEW_PATH_FILES = {"skills/poc-start/SKILL.md", "skills/poc-help/SKILL.md"}
+POC_START = "skills/poc-start/SKILL.md"
+POC_HELP = "skills/poc-help/SKILL.md"
 VAGUE = [
     ("(default: current repo)", "(default: the repo root)"),
     ("in the current repo root", "at the repo root"),
@@ -33,14 +34,24 @@ VAGUE = [
 NAME = re.compile(r"(?<![\w/>])(POC|LOG)\.md")
 
 
-def rewrite_names(text, prefix):
+def rewrite_names(text, prefix_for_line):
+    """Rewrite bare document names. prefix_for_line(line) gives the prefix for that line."""
     out = []
     for line in text.splitlines(keepends=True):
         if re.match(r"^### (?:POC|LOG)\.md\s*$", line):
             out.append(line)
         else:
+            prefix = prefix_for_line(line)
             out.append(NAME.sub(lambda m: "%s%s.md" % (prefix, m.group(1)), line))
     return "".join(out)
+
+
+def prefix_rule(rel):
+    if rel == POC_START:
+        return lambda line: "poc-spec/"
+    if rel == POC_HELP:  # poc-spec/ only on table rows, <docs>/ in the steps
+        return lambda line: "poc-spec/" if line.lstrip().startswith("|") else "<docs>/"
+    return lambda line: "<docs>/"
 
 
 def main(src, dst):
@@ -53,7 +64,7 @@ def main(src, dst):
         text = path.read_text(encoding="utf-8")
         for a, b in VAGUE:
             text = text.replace(a, b)
-        text = rewrite_names(text, "poc-spec/" if rel in NEW_PATH_FILES else "<docs>/")
+        text = rewrite_names(text, prefix_rule(rel))
         text = text.rstrip("\n") + "\n"
         name = path.parent.name if path.name == "SKILL.md" else path.stem
         is_agent = rel.startswith("agents/")
@@ -66,15 +77,13 @@ def main(src, dst):
         if rel == "skills/poc-help/SKILL.md":
             text += "\n" + T.LEGACY_NOTE + "\n"
         if rel == "agents/packager.md":
-            text += ("\nWarning check: `git ls-files poc-spec/POC.md poc-spec/LOG.md`, "
-                     "`git ls-files --others --exclude-standard poc-spec/POC.md poc-spec/LOG.md`, "
-                     "`git ls-files POC.md LOG.md`, `git ls-files --others --exclude-standard POC.md LOG.md`. "
+            text += ("\nWarning check: " + ", ".join("`%s`" % c for c in T.LS_FILES_COMMANDS) + ". "
                      "Read `Repo visibility:` and `Deal:` from the header. Never edit `.gitignore`. Not for SUMMARY.md.\n"
                      + T.WARNING_NEW + "\n" + T.WARNING_OLD + "\n")
         path.write_text(text, encoding="utf-8")
     for rel in ("README.md", "docs/workflow.md"):
         p = dst / rel
-        p.write_text(rewrite_names(p.read_text(encoding="utf-8"), "poc-spec/"), encoding="utf-8")
+        p.write_text(rewrite_names(p.read_text(encoding="utf-8"), lambda line: "poc-spec/"), encoding="utf-8")
     print("stand-in written to %s" % dst)
 
 

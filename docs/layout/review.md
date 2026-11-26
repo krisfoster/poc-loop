@@ -50,3 +50,40 @@ Reviewer: the `reviewer` agent again, with no conclusions from the author. Scope
 | 14 | MINOR | The probe runner is called standalone but imports the harness | Applied. Wording corrected in findings and the script |
 
 After the changes: the stand-in tree passes all 12 tests, the mutation check is 34 rows with 0 wrong (up from 29: new rows for the `poc-help` step, a pasted legacy note, capitalised "Current Directory", and a `cd`-based packager command, plus a control for `poc-help` table rows), and the real tree is still 41 tests with 7 failures, the Phase 2 work.
+
+## 3.3 Independent diff review, and a delta review (2026-11-26)
+
+Reviewer: the `reviewer` agent, twice more, with no conclusions from the author. First on the whole implementation diff against `main`, then on the delta that fixed its findings and changed Rule B after the first manual run. Both ran the test suite and read only. The author re-checked the checkable claims first (the `git rev-parse --show-prefix` behaviour and the packager `.gitignore` contradiction were reproduced).
+
+**Diff review** (no blockers, 3 major, 7 minor), all applied in `8b17d9f`:
+
+| # | Severity | Finding | Disposition |
+|---|---|---|---|
+| 1 | MAJOR | `poc-start`'s at-the-root check run against the root always prints nothing, so it could never fire | Applied: run it against the target |
+| 2 | MAJOR | Rule A treats any path in the arguments as the target, so a path inside a log entry or question could move the root | Applied: the target is a project path only for a command that takes one |
+| 3 | MAJOR | The packager's `.gitignore` ban contradicted its scope of writes | Applied: scoped to the warning |
+| 4 | MINOR | "Do not read file contents" contradicted reading the POC header | Applied: reads the header only, not `LOG.md` |
+| 5 | MINOR | `poc-harden` had no Next text for a half-migrated PoC | Applied |
+| 6 | MINOR | `poc-help`'s older-layout branch could be read as skipping the status | Applied: "then continue with step 3" |
+| 7 | MINOR | `poc-start` could leave an empty `poc-spec/` and had no non-interactive rule | Applied |
+| 8 | MINOR | A bare repository fell into the `git init` branch | Applied: bare check first |
+| 9 | MINOR | Rule A put a needless `cd` in front of `poc-research`'s setup script | Applied (reworded again below) |
+| 10 | MINOR | README and changelog claimed more than the evidence | Applied: "designed to" |
+
+**Delta review** (no blockers, 1 major, 9 minor), applied in `3e3d904`; one more tuning of Rule B came from the first manual run (C10, in `8379d33`):
+
+| # | Severity | Finding | Disposition |
+|---|---|---|---|
+| 1 | MAJOR | The C10 fix covered only Rule B's four paths: other checks and reads (`ls`, `chmod`, `tail`) could still be written with a `cd` | Applied: Rule A says commands that only take file arguments get `<root>/<path>` and need no `cd`, and file tools check, read and list files. `poc-start` uses `chmod +x "<root>/verify.sh"` |
+| 2 | MINOR | `poc-start`'s first write could happen before the never-overwrite check | Applied: the check opens step 5 |
+| 3 | MINOR | Step 2 said "first" but the root lookup came before the bare check | Applied |
+| 4 | MINOR | The non-interactive stop did not cover the `git init` offer or the public-repo question | Applied |
+| 5 | MINOR | The model may not see `argument-hint`, so "if this command takes one" was not visible | Applied: `poc-start`, `poc-review` and `poc-verify` say what counts as a project path |
+| 6 | MINOR | Glob can skip a gitignored `poc-spec/` | Applied: Rule B reads each path with Read |
+| 7 | MINOR | `${CLAUDE_SKILL_DIR}` is literal text in agent files | Applied: "a script by its absolute path" |
+| 8 | MINOR | The packager's scoped ban left a back door for another step | Applied: a rule that no step adds the docs folder to `.gitignore` |
+| 9 | MINOR | C10 evidence was not in the repo | Applied: `docs/layout/findings.md` |
+| 10 | MINOR | `poc-help`'s command-name mode contradicted Rule B | Applied |
+
+After the changes: 41 tests pass, the mutation check on the real tree is 36 rows with 0 wrong, and the 22 manual cases all behave (see findings).
+

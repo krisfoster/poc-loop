@@ -202,7 +202,9 @@ def checks_for(case_id, ctx):
         import re as _re
         chk(not any(_re.search(r"\bgit\b[^;&|\n]*\brm\b", c) for c in ctx.cmds()), "no git rm")
         gi = ctx.text(".gitignore")
-        chk("poc-spec" not in gi and "POC.md" not in gi and "LOG.md" not in gi, ".gitignore does not name the docs folder (a .env line is the packager's own job)")
+        fixture_ignore = "poc-spec/\n" if case_id == "C21" else ""  # C21's fixture ignores the folder itself, the packager must leave that line alone
+        chk(gi == fixture_ignore or ("poc-spec" not in gi and "POC.md" not in gi and "LOG.md" not in gi),
+            ".gitignore does not gain the docs folder (a .env line is the packager's own job)")
     return out
 
 

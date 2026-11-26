@@ -171,3 +171,51 @@ Frontmatter: only the `description:` lines of `poc-start`, `poc-log` and `poc-ve
 
 **3.2 Mutation check on the real tree** (`python3 docs/layout/tools/mutate.py .`): 36 rows, 0 wrong, no missing targets. Each deliberate wrong edit fails exactly the intended test, and the 5 negative controls fail nothing. The stand-in tree was mechanical, so this is the first time the targets were looked up in hand-written text, and all of them were found.
 
+## 3.4 and 3.5 Manual checks of the real skills (2026-11-26)
+
+**Run.** `docs/layout/tools/manual/manual_checks.py`: the real spike-loop commands, loaded from this worktree as the plugin, run headless (`claude -p "/spike-loop:<command> ..."`, Claude Code 2.1.325, each skill and agent on the model its frontmatter names, so `poc-start` ran on Opus) against 22 scratch git repos, one run per case, in an isolated HOME. Bash grants were narrow patterns, one per part of a compound command, never a broad `Bash`. The final run is against commit `3e3d904`. A heuristic check per case ran, and every digest was read by the author, because a regex can pass wrong behaviour. A planned symlink case (C03) was dropped: Claude Code reports the physical working directory, so a path-spelling mismatch cannot be produced, and the at-the-root check (`git rev-parse --show-prefix`) does not depend on path spelling (observed locally). Estimated cost on the plan allowance, not a bill: first full run $1.31, a regression run of 10 cases after the first fix $0.10, final full run $1.42.
+
+**Result on the final text: all 22 behaved as the spec says.**
+
+| ID | Scenario | Observed |
+|---|---|---|
+| C01 | `poc-start`, new repo, from the root | Wrote `poc-spec/POC.md`, `poc-spec/LOG.md`, `verify.sh` (executable) and a `CLAUDE.md` with the wiring block. Nothing named `POC.md` or `LOG.md` at the root. Nothing committed. Ended with a Next line |
+| C02 | `poc-start` from `sub/deep`, root added | Named the root, asked where to write, wrote nothing, ended with a Next line |
+| C04 | `poc-start` at the root of a repo nested in another | Named the outer repo, asked which should hold `poc-spec/`, wrote nothing |
+| C05 | `poc-start` in a linked worktree | Said so, named the main checkout, explained the missing-folder risk, asked, wrote nothing |
+| C06 | `poc-start` in a bare repository | Stopped at the first command, said bare repositories are not supported |
+| C07 | `poc-start` with an older root `POC.md` | Stopped before writing, listed what was in the way, offered options |
+| C08 | `poc-log`, new layout, from the root | Appended to `poc-spec/LOG.md` |
+| C09 | `poc-log` from `sub/deep`, root added | Appended to the root's `poc-spec/LOG.md`, nothing under `sub/deep` |
+| C10 | `poc-log` from `sub/deep`, root not added | **First run: refused** (`cd` blocked), stopped with the `/add-dir` advice, because the model ran the existence check as `cd "<root>" && ls ...`. **Fixed** in Rule B and Rule A (see below). Re-runs: logged to the root's `poc-spec/LOG.md` using `Glob`, `Read` and `Edit` with absolute paths; a `cd` compound was refused and the model carried on without it |
+| C11 | `poc-log`, older layout | Appended to the root `LOG.md`, created no `poc-spec/` |
+| C12, C13 | `poc-log` with both layouts, and after a partial move | Stopped, named the files, offered the two ways to resolve it, ended with a Next line, changed nothing |
+| C14 | `poc-log` with no PoC files | Said none of the four files exist, pointed at `/spike-loop:poc-start`, created nothing |
+| C15 | `poc-help` on the new layout | Table, status block, `Next:`, no older-layout line, wrote nothing |
+| C16 | `poc-help` on the older layout | Printed the older-layout note (verbatim once, with backticks added around the file names once), then continued with the status. Changed nothing |
+| C17 | `poc-verify` from `sub/deep`, narrow grants, root not added | Verdict PARTIAL: the shell was refused, said so, suggested restarting at the root or `/add-dir`, did not work around it, ended with a Next line |
+| C18 | The same with the root added | PASS: ran `cd "<root>" && ./verify.sh`, which printed the root as its working directory |
+| C19 | Packager, public, `poc-spec/` tracked | New-layout warning under Open gaps |
+| C20 | Packager, public, untracked and not ignored | Same warning |
+| C21 | Packager, public, `poc-spec/` ignored | No warning, and it said why. The tracked `.gitignore` was left untouched |
+| C22 | Packager, private, `Deal: none`, tracked | No warning, and it said why |
+| C23 | Packager, older layout, public, tracked | Older-layout warning, with the `git rm --cached POC.md LOG.md` advice |
+
+No packager run executed `git rm`, and none added the docs folder to `.gitignore` (the `.gitignore` files that appeared hold only `.env`, the packager's own job).
+
+**Defects found by the runs, fixed before this record:**
+
+| Defect | Fix |
+|---|---|
+| C10: a session below the root whose permissions exclude it was refused for an existence check that needs no `cd` | Rule B: read each of the four paths with Read (not `cd` plus `ls`, and not Glob, which can skip gitignored files). Rule A: commands that only take file arguments get `<root>/<path>` and need no `cd`, and file tools check, read and list files. Re-run: C10 passes |
+| My own checks: a plain `rm -rf` of a temp directory matched "git rm", a packager `.env` line in `.gitignore` matched "docs folder added", C21's own ignore line matched, and a reworded older-layout line (backticks) failed an exact match | Checks corrected. These were faults in the checks, not in the skills |
+
+**Limits and observations:**
+
+- **One run per case, on the models the frontmatter names.** This shows the instructions are followable, not that the behaviour is reliable. The model-run eval suite is the follow-up (plan Phase 4).
+- **Not run on the new layout:** `poc-checkpoint`, `poc-harden`, `poc-review`, `poc-research`, `poc-build`, `poc-debug`, the half-migrated stop of `poc-package` and `poc-harden`, a packager run with a real `Deal:` value, `GIT_DIR` set, a symlinked `poc-spec/`, and an interactive session. Those rely on the same two rules, which the text tests enforce, but they were not exercised.
+- **The packager's clean-clone step could not run in any of the five packager runs.** The narrow grants do not allow a temp directory outside the session's directories (`mkdir`, `cd`, `ls` and running a script there were all refused). The packager said the step was not completed, did not work around it, listed it under Open gaps, and in two runs left a temp copy of the repo inside the working tree. So in a restricted session the README run steps are checked in the working tree only. This is not specific to the layout and no change was made.
+- **Commands built from variables or `$(...)` are refused** by Claude Code before they run ("A variable in this command can't be checked before it runs"), so the model retried with literal paths. It cost a retry and did not change the outcome.
+- **`poc-log`'s entry count varied** between runs (2 or 3), because the fixture's `LOG.md` carries the template line `## <YYYY-MM-DD HH:MM> ...`. This predates the change and is unrelated.
+- **Rule B's `Read` is permitted outside the launch directory by default** (probe R16), and was in C10. In an interactive session Claude Code may still ask for a first read outside the working directories (reviewer's reading of the docs, not tested), in which case Rule A's refusal clause applies.
+

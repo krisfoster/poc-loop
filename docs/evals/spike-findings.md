@@ -124,6 +124,14 @@ Docs read: https://code.claude.com/docs/en/plugin-marketplaces, `plugins-referen
 - **Layout B, plugin in `plugins/spike-loop/` with `evals/` at the repo root** (source `git-subdir`): the installed copy held only the subdirectory's contents. `evals/` was absent.
 - **Decision:** keep the current layout and accept that `evals/` ships under the size budget in the spec, because `tests/`, `docs/`, `.envrc` and `CLAUDE.md` already ship and moving the plugin changes the install path and the clone instructions. Revisit if `evals/` grows.
 
+## Phase 1 review (2026-11-26)
+
+An independent review of the harness code found issues now fixed in `evals/`. One is worth recording as a finding about Claude Code:
+
+- **File tools read outside the working directory by default.** In an isolated headless run with only `Read` granted, a prompt to read a file outside the workspace returned its contents. With `--settings '{"permissions":{"blockReadsOutsideWorkingDirectories":true}}'` the same prompt was denied, with a `Read` entry in `permission_denials`. Without the setting, an unrestricted `Read` grant could reach this repo's `.env`, which holds the token. The runner now always passes the setting. Tested on Claude Code 2.1.325, two runs.
+- The init event carries `memory_paths` (the auto-memory directory) and `cwd`. A run is now checked to have its memory path under the temporary config directory and its working directory equal to the workspace. This confirms from the log, not from asking the model, that the maintainer's configuration was not loaded.
+- The init `skills` list includes Claude Code's own built-in skills (19 observed) besides the plugin's, so the isolation allowlist names them. A new Claude Code version or account may need that list updated, and the violation message names what was unexpected.
+
 ## Not yet run
 
 0.1 (doc reading, mostly covered by the 0.7 and 0.8 docs pages). Also open inside 0.4: Anthropic's terms on scripted use of a subscription and plan usage over a larger run.

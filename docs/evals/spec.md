@@ -1,6 +1,6 @@
 # Spec: stage evals for the Spike Loop
 
-Status: draft, revised after an independent review. Branch: `evals-spec`. Nothing in this spec is implemented yet.
+Status: draft, revised after an independent review. Branch: `evals-spec`. Phase 0 and Phase 1 (except 1.8) are done, see `docs/evals/plan.md`. The rest is not implemented yet.
 
 Statements about Claude Code behaviour (headless mode, permission defaults, `claude plugin eval`, config isolation) come from the reviewer's reading of the official docs on 2026-11-25 and are marked "re-verify in 0.1". They are not yet confirmed by running anything.
 
@@ -129,7 +129,7 @@ The repo is public and has its own secret scan. Therefore:
 
 ## Success and regression thresholds (provisional)
 
-These numbers are starting points. Phase 1 measures variance by running the same cases several times, and the thresholds are then set so that a change smaller than the measured noise does not fire.
+These numbers are starting points. A first measurement on one always-passing case (10 runs, 2026-11-26) showed no score noise and a cost spread of 1.17x, which is not enough to set them, so Phase 2 repeats it. Phase 1 was to measure variance by running the same cases several times, and the thresholds are then set so that a change smaller than the measured noise does not fire.
 
 - A **case regression** is a drop of at least 2 passes out of 3 against the baseline. A smaller drop triggers a rerun at N=5, and a regression is declared only if the rerun also falls below the baseline's pass rate minus one run.
 - A **stage regression** is a drop of at least 15 percentage points in the stage's pooled pass rate over at least 12 runs, or a drop in review recall of at least 15 points over the same repos.

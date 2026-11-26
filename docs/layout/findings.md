@@ -149,3 +149,25 @@ Before applying the review, the author re-checked what could be checked locally.
 | `--path-format` first shipped in git 2.31.0 | Not checked by the author | The reviewer's reading of the git release notes |
 
 Not re-run: the `GIT_DIR`, submodule and worktree-of-a-bare-repo cases, and whether a `cd` into the packager's `$TMPDIR` clone is refused under narrow grants. A `cd` plus `git` probe with `additionalDirectories` was suggested and not run, to keep to the maintainer's approval of the original probes.
+
+## Phase 2 implementation and Phase 3.1, 3.2 (2026-11-26)
+
+**Phase 2 (done).** Nine tasks in nine commits (`faf7975` to `57314a1`): `poc-start`, `poc-log` and `poc-checkpoint`, `poc-harden`, the five forked skills, `poc-research` and `research-protocol`, `poc-help`, the seven agents with the packager warning, the README and workflow, the changelog and `plugin.json` 0.2.0. Diff against `main` at `6dec01e`: 23 files, 138 insertions, 61 deletions. The whole suite is green: 41 tests (the 29 from before and the 12 new ones). **Gate 2: passed.** `typos` and `gitleaks` are clean, no em dashes, and the 0.1.2 changelog entry sits intact under 0.2.0.
+
+One addition came up during the work, as a spec, test and tool change: `poc-start` has to say that a `POC.md` or `LOG.md` at the repo root blocks it from writing, which names the bare files. That sentence is now defined in the spec, exempt in test 3 for `poc-start` only, required by test 7, and covered by two mutation rows.
+
+Frontmatter: only the `description:` lines of `poc-start`, `poc-log` and `poc-verify` changed, as the audit called for. No other key in any skill or agent changed.
+
+**3.1 Audit after** (`python3 docs/layout/audit.py`, lines that match):
+
+| Pattern | Before (2026-11-26, `main` at `6dec01e`) | After |
+|---|---|---|
+| vague base | 10 | 0 |
+| "repo path" | 4 | 0 |
+| `./` | 6 | 5 (the kept `./verify.sh` and the `rsync` pipe, correct from any directory because of Rule A) |
+| `gitleaks dir .` | 2 | 2 (kept, same reason) |
+| `POC.md`, `LOG.md`, `SUMMARY.md` | 35, 31, 15 | 45, 40, 18 (more mentions: Rule B text and `<docs>/` and `poc-spec/` forms. Test 3 and test 9 are the classifier that every one of them is in the new form or a verbatim exempt text) |
+| `verify.sh` | 20 | 21 |
+
+**3.2 Mutation check on the real tree** (`python3 docs/layout/tools/mutate.py .`): 36 rows, 0 wrong, no missing targets. Each deliberate wrong edit fails exactly the intended test, and the 5 negative controls fail nothing. The stand-in tree was mechanical, so this is the first time the targets were looked up in hand-written text, and all of them were found.
+

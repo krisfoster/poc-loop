@@ -4,7 +4,7 @@ Spec: `docs/prereqs/spec.md` (draft 2). Reviews: `docs/prereqs/review.md`. Branc
 
 Order: probes first (they decide two design points), then the free work with tests written before the code, then paid checks, then an implementation review. Each phase ends with `python3 -m unittest discover -s tests` passing, `typos` clean and no em dashes.
 
-## Phase 0: probes (paid, one run each, capped at $0.25 per run)
+## Phase 0: probes (paid, one run each, capped at $0.25 per run). Done 2026-11-27, see `findings.md`: all three as hoped, $0.013
 
 | ID | Task | Decides |
 |---|---|---|
@@ -44,7 +44,7 @@ Probe scripts go in `docs/prereqs/tools/probes/`, reusing `docs/layout/tools/pro
 | ID | Task | Acceptance |
 |---|---|---|
 | 4.1 | Runner: `hide_tools` case field (spec, Evals), with unit tests using the fake runner | A hidden tool is not on the run's `PATH`; versioned aliases hidden; nothing else changes |
-| 4.2 | `tool_call_count` gains `input_regex`, with tests; if P1 says so, the `{plugin}` placeholder in `allowed_tools` and the narrow-grant rule for it | Unit tests pass |
+| 4.2 | `tool_call_count` gains `input_regex`, with tests. (The `{plugin}` placeholder is not needed: P1 showed the skill's own grant applies headless) | Unit tests pass |
 | 4.3 | Cases: `poc-log/missing-python`, `poc-research/missing-python`, `poc-start/missing-git`; existing `poc-log` time graders tightened to the script's format plus checker and script call counts | Self-check (good and planted-bad result per case) passes |
 
 ## Phase 5: paid verification

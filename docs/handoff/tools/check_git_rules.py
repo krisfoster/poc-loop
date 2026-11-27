@@ -24,6 +24,23 @@ FIELDS = ["branch", "at", "uncommitted", "unmerged worktrees", "waiting on you",
 NOT_REPO = "not a git repo"
 LISTED = 5
 
+# Every git command the rules use, written exactly as docs/handoff/spec.md writes it. Each runs as
+# `git --no-optional-locks -C "<root>" ...` unless it names another -C. The spec must contain each
+# one verbatim (checked below), and the skills will be checked against the same list (plan 1.6).
+COMMANDS = [
+    "rev-parse --is-inside-work-tree",
+    "branch --show-current",
+    "rev-parse --short HEAD",
+    "status --porcelain -- . <exclusions>",
+    "worktree list --porcelain",
+    "log --oneline <branch or sha> --not HEAD",
+    'git --no-optional-locks -C "<worktree path>" status --porcelain',
+    'git --no-optional-locks -C "<worktree path>" rev-parse --short HEAD',
+    "merge-base --is-ancestor <recorded sha> HEAD",
+    "log --oneline <recorded sha>..HEAD -- . <exclusions>",
+]
+SPEC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "spec.md")
+
 ENV = dict(os.environ)
 
 
@@ -83,8 +100,11 @@ def gather(root, layout):
     at = sha.strip() if rc == 0 else "no commits"
     paths = porcelain_paths(git(root, "status", "--porcelain", *pathspec(layout))[1])
     if paths:
-        shown = ", ".join(paths[:LISTED]) + (", ..." if len(paths) > LISTED else "")
-        uncommitted = "%d paths: %s" % (len(paths), shown)
+        # A path git prints in quotes (spaces, `;`, other unusual characters) is counted, not listed,
+        # so it cannot break the `; ` and `, ` separators.
+        listable = [p for p in paths if not p.startswith('"')][:LISTED]
+        shown = ", ".join(listable + (["..."] if len(paths) > len(listable) else []))
+        uncommitted = "%d paths: %s" % (len(paths), shown) if listable else "%d paths: ..." % len(paths)
     else:
         uncommitted = "none"
     entries = worktree_entries(root)
@@ -100,7 +120,7 @@ def gather(root, layout):
             ref, name = e["branch"], e["branch"]
         else:
             ref = e["head"]
-            name = "detached " + plain(e["path"], "rev-parse", "--short", "HEAD").strip()
+            name = "detached " + git(e["path"], "rev-parse", "--short", "HEAD")[1].strip()
         commits = at != "no commits" and bool(git(root, "log", "--oneline", ref, "--not", "HEAD")[1].strip())
         dirty = bool(git(e["path"], "status", "--porcelain")[1].strip())
         if commits or dirty:
@@ -354,6 +374,29 @@ def main():
     check("R3-13 --no-optional-locks status leaves the index alone", after_nol == before)
     RESULTS.append(("R3-13 evidence: plain status rewrote the index (informational)",
                     True, "rewrote" if after_plain != after_nol else "did not rewrite"))
+
+    # R3b-N7: unusual file names are counted, not listed, and the line still parses.
+    r = new_repo(base, "names")
+    for n in ("c; d.py", "e f.py", "ok.py"):
+        write(os.path.join(r, n))
+    vals, paths = gather(r, "new")
+    line = state_line(vals)
+    try:
+        st = parse_state(line)
+    except AssertionError:
+        st = {"uncommitted": None}
+    check("R3b-N7 a ';' or space in a file name does not split the line", st["uncommitted"] == vals["uncommitted"], line)
+    check("R3b-N7 quoted names counted, plain ones listed", st["uncommitted"] == "3 paths: ok.py, ...", st["uncommitted"])
+    if st["uncommitted"] == vals["uncommitted"]:
+        rec = parse_state(line)
+        check("R3b-N7 unchanged: fresh", stale_reasons(rec, r, "new") == [])
+        os.remove(os.path.join(r, "c; d.py"))
+        check("R3b-N7 a quoted path removed: stale (count)", "uncommitted" in stale_reasons(rec, r, "new"))
+
+    # R3b-N4: the spec writes every command this script runs, verbatim.
+    spec = open(SPEC, encoding="utf-8").read()
+    missing = [c for c in COMMANDS if c not in spec]
+    check("R3b-N4 every command is written in the spec", not missing, missing)
 
     # Format: the six fields parse back in order.
     line = state_line(gather(new_repo(base, "fmt"), "new")[0])

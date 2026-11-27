@@ -1,6 +1,6 @@
 # Spec: hand-off state, so a fresh session can pick a PoC up
 
-Status: draft 5, revised after the second independent review of 2026-11-27 (R.3, see `docs/handoff/review.md`). Branch: `handoff-state-spec`, off `main` at `0317448` (v0.2.1). Nothing here is implemented. The plan is `docs/handoff/plan.md`. The git rules below are checked free by `docs/handoff/tools/check_git_rules.py`.
+Status: draft 6, revised after the second independent review of 2026-11-27 (R.3) and a check of draft 5 the same day (R.3b), see `docs/handoff/review.md`. Branch: `handoff-state-spec`, off `main` at `0317448` (v0.2.1). Nothing here is implemented. The plan is `docs/handoff/plan.md`. The git rules below are checked free by `docs/handoff/tools/check_git_rules.py`.
 
 Maintainer decisions (2026-11-26): `pause` is a new outcome of `poc-checkpoint` and not a new command; only `poc-checkpoint` writes State; only branch names are stored, never worktree paths; the version is 0.3.0; a `SessionStart` hook (option C) is built later and only if the cold-start check shows it is needed.
 
@@ -48,11 +48,11 @@ A skill cannot clear context. The docs describe `/clear` only as a user command 
 
 ## Phase boundaries
 
-Four points in the loop end a phase. Each names the command that ends it, what it writes and what its `Next:` line says. Every other mention of `/clear` in the plugin's skills and docs goes through `poc-checkpoint` first: `docs/workflow.md`'s "after two failed fix attempts" line becomes "`/spike-loop:poc-debug`, or `/spike-loop:poc-checkpoint iterate` and then `/clear`", and its tier 2 "`/clear` between passes" becomes "`/spike-loop:poc-checkpoint` between passes". The one exception is the optional `/clear` after `poc-start`, whose files are already the hand-off.
+Four points in the loop end a phase. Each names the command that ends it, what it writes and what its `Next:` line says. Every other mention of `/clear` in the plugin's skills and docs goes through `poc-checkpoint` first: `docs/workflow.md`'s "after two failed fix attempts" line becomes "`/spike-loop:poc-debug`, or `/spike-loop:poc-checkpoint iterate` and then `/clear`", and its tier 2 "`/clear` between passes" becomes "`/spike-loop:poc-checkpoint` between passes". No exception: no skill or doc asks for a `/clear` after `poc-start` today, and none will.
 
 | Boundary | Ended by | Writes | `Next:` |
 |---|---|---|---|
-| After start, tier 2 only | `poc-start` | `POC.md`, the "PoC started" `LOG.md` entry (exists today) | Unchanged. `/clear` is optional, the files are the hand-off |
+| After start, tier 2 only | `poc-start` | `POC.md`, the "PoC started" `LOG.md` entry (exists today) | Unchanged (it names no `/clear`). The files are the hand-off |
 | After a working session | `poc-checkpoint iterate`, `pivot` or `pause` | The outcome entry (step 3 today) now carries a `State:` line | `/clear`, then `/spike-loop:poc-help` |
 | After a spec or plan step | `poc-checkpoint pause <topic>` | The same entry, plus `poc-spec/handoffs/<date>-<topic>.md` | `/clear`, then `/spike-loop:poc-help` |
 | After harden or stop | `poc-checkpoint harden` or `stop` | `SUMMARY.md` and the outcome entry with State | Unchanged |
@@ -73,10 +73,10 @@ Six fields, in this order, separated by `; `. Each value is one of:
 |---|---|
 | `branch` | the current branch name, or `detached`, or `not a git repo` |
 | `at` | the short sha of HEAD, or `no commits`, or `not a git repo` |
-| `uncommitted` | `none`, or `<n> paths: <p1>, <p2>, ...` listing at most 5 paths and ending `, ...` when `<n>` is more than 5, or `not a git repo` |
+| `uncommitted` | `none`, or `<n> paths: <p1>, <p2>, ...` listing at most 5 paths and ending `, ...` when some are not listed, or `<n> paths: ...` when none can be listed, or `not a git repo`. A path git prints in double quotes (a space, `;` or other unusual character) is counted, never listed |
 | `unmerged worktrees` | `none`, or a `, `-separated list where each item is a branch name or `detached <short sha>`, followed by ` (uncommitted)` when that worktree has uncommitted changes, or `not a git repo` |
 | `waiting on you` | `none`, or the decision in a few words, with no `;` |
-| `resume` | one command, or one sentence naming a command, with no `;`. After `pause <topic>` it names the hand-off file: `read poc-spec/handoffs/<file>, then <command>` |
+| `resume` | one command, or one sentence naming a command, with no `;`. By outcome: iterate, the next question as a sentence; pivot, the same after the `POC.md` edit; `pause <topic>`, `read poc-spec/handoffs/<file>, then <command>`; `pause` with no topic, the next step as a sentence; harden, `/spike-loop:poc-harden`; stop, `none, the PoC is closed` |
 
 The only path a State line holds is the hand-off file in `resume` and the repo-relative paths in `uncommitted`. Worktree paths are never written.
 
@@ -89,7 +89,7 @@ All read-only, all from the repo root, and every git call as `git --no-optional-
 - **at.** `rev-parse --short HEAD`. It fails with no commits, and the value is `no commits`.
 - **The exclusions.** One list, used by every comparison here: in the `poc-spec` layout `poc-spec`, `.claude` and `SUMMARY.md`; in the older root layout `POC.md`, `LOG.md`, `SUMMARY.md` and `.claude`, by name. Never `.`: as a pathspec, `:(exclude).` excludes the whole repository, so an older-layout PoC would always read clean. `SUMMARY.md` is excluded because step 6 writes it after the State is gathered. The pathspec is `-- . ":(exclude)<each>"`.
 - **uncommitted.** `status --porcelain -- . <exclusions>`. The path is each line after its first three characters, and the new name for a rename (`old -> new`). Paths are listed in git's order.
-- **unmerged worktrees.** `worktree list --porcelain`. The first entry is always the main checkout, also when the session's root is itself a linked worktree. Consider only entries whose path is under `<main checkout>/.claude/worktrees/`, and not the root's own worktree. For each: its name is the `branch` line without `refs/heads/`, or `detached <short sha>` when the entry says `detached`. It has commits when `log --oneline <branch or sha> --not HEAD` prints anything (skipped when `at` is `no commits`, where it fails). It has uncommitted changes when `git --no-optional-locks -C "<worktree path>" status --porcelain` prints anything. It is listed when either holds. The worktree path is used to run the check and printed to the user, never written.
+- **unmerged worktrees.** `worktree list --porcelain`. The first entry is always the main checkout, also when the session's root is itself a linked worktree. Consider only entries whose path is under `<main checkout>/.claude/worktrees/`, and not the root's own worktree. For each: its name is the `branch` line without `refs/heads/`, or `detached <short sha>` when the entry says `detached`, the sha from `git --no-optional-locks -C "<worktree path>" rev-parse --short HEAD`. It has commits when `log --oneline <branch or sha> --not HEAD` prints anything (skipped when `at` is `no commits`, where it fails). It has uncommitted changes when `git --no-optional-locks -C "<worktree path>" status --porcelain` prints anything. It is listed when either holds. The worktree path is used to run the check and printed to the user, never written.
 - **waiting on you.** From the conversation, `none` when nothing was said. A process the user says is running is recorded here.
 
 ### Rules for readers
@@ -120,12 +120,13 @@ The wiring text in a PoC's `CLAUDE.md` says to read the last 40 lines of `poc-sp
   2. Gather the State (Sources above).
   3. For `pause <topic>` in the `poc-spec` layout: choose the file name, then write the hand-off file (below), so `resume:` can name the file that was actually written.
   4. Append the closing entry with the `State:` line.
-  5. Read the tail of `<docs>/LOG.md` back with the Read tool, and the hand-off file if one was written. Check the entry, its `State:` line and the file are there.
-  6. Only then print a `Next:` that contains `/clear`. If a write or the read-back fails, say so, print no `/clear`, and end with `Next: /spike-loop:poc-checkpoint <outcome>` to try again.
-  7. Then the existing steps: pivot edits `POC.md` after the user agrees, harden and stop write `SUMMARY.md` (both excluded from the comparison, so neither makes the State stale).
+  5. The existing steps: pivot edits `<docs>/POC.md` after the user agrees, harden and stop write `SUMMARY.md`. Both are excluded from the comparison, so neither makes the State stale.
+  6. Read the tail of `<docs>/LOG.md` back with the Read tool, and the hand-off file if one was written. Check the entry, its `State:` line and the file are there.
+  7. Last, the `Next:` line. Only after a read-back that passed may it contain `/clear`. If a write or the read-back fails, say so, print no `/clear`, and end with `Next: /spike-loop:poc-checkpoint <outcome>` to try again.
+- **`pause` with no topic.** Allowed. It writes the entry and State and no hand-off file, and `resume:` is the next step as a sentence. With no arguments at all, a recommended `pause` asks for an optional topic.
 - **Topic.** Lower-case it and replace spaces with hyphens. It must then match `[a-z0-9-]+`. Anything else (a `.`, a `/`, an empty result) is refused and the user is asked for another. In a public repo it must not be a customer or deal name.
 - **Hand-off file.** `poc-spec/handoffs/<YYYY-MM-DD>-<topic>.md`: what was done, the State line, decisions waiting, gotchas learned, files to read first, the next step, at most 40 lines. To choose the name, try to Read `<root>/poc-spec/handoffs/<name>.md`, then `-2`, `-3` and so on: the first name whose Read fails as not found is used (Read, because Glob can skip ignored files). The file is created with the Write tool and an existing file is never overwritten. The folder is created only now, never empty. In a PoC in the older root layout, no hand-off file is written (that would create `poc-spec/`, which only `poc-start` creates, `docs/layout/spec.md`): the entry and State are written, and the command says to migrate to the new layout to get hand-off files.
-- **`Next:`** iterate, pivot and pause: `/clear`, then `/spike-loop:poc-help`. Pivot first edits the assumptions. Harden and stop are unchanged.
+- **`Next:`** iterate, pivot and pause: `/clear`, then `/spike-loop:poc-help` (for pivot, the `POC.md` edit is already done in step 5). Harden and stop are unchanged.
 
 ### `poc-log`
 
@@ -138,8 +139,8 @@ Reads the last 25 lines of the log as today, and stays read-only (every git call
 | Last entry | Prints | `Next:` |
 |---|---|---|
 | State, fresh | `Resume:` with the `resume:` value. If it names a hand-off file, that file is read first and summarised | The `resume:` command |
-| State, stale | `State is from <entry date>; it may be stale: <what differs>` | iterate, pivot or pause: `/spike-loop:poc-checkpoint <Decision>` to record the state again. For pause, the hand-off file named in `resume:` is still read and summarised, marked as possibly stale. harden, stop: unchanged |
-| No State | "State unknown" | iterate, pivot or pause: `/spike-loop:poc-checkpoint <Decision>`. harden, stop, none yet: unchanged |
+| State, stale | `State is from <entry date>; it may be stale: <what differs>` | iterate, pivot: `/spike-loop:poc-checkpoint <Decision>` to record the state again. pause: the hand-off file named in `resume:`, if any, is still read and summarised, marked as possibly stale, and `Next:` is `/spike-loop:poc-checkpoint pause <topic>` with the topic taken from that file name (the date and any `-2` suffix removed), or `/spike-loop:poc-checkpoint pause` when there is no file. harden, stop: unchanged |
+| No State, or a State line with any entry after it | "State unknown" | By the last entry's Decision. iterate, pivot or pause: `/spike-loop:poc-checkpoint <Decision>`. harden, stop, none yet: unchanged |
 
 No row's `Next:` contains `/clear`, so a stale or missing State never leads back to itself.
 
@@ -153,10 +154,10 @@ Only the Decision list in the `LOG.md` template changes, to add `pause`. The wir
 
 - **branch** differs (a name, `detached`, `not a git repo`).
 - **commit.** If either `at` is `no commits` or `not a git repo`, stale when they differ. Otherwise stale when `merge-base --is-ancestor <recorded sha> HEAD` fails (a reset to before it, or a sha that does not exist), or when `log --oneline <recorded sha>..HEAD -- . <exclusions>` prints anything. A commit that only touches the exclusions (the log, `SUMMARY.md`, `.claude/`) does not count, because the natural step after a checkpoint, which does not commit, is to commit the log.
-- **uncommitted.** Stale when the count differs, or when a listed path is no longer uncommitted. With 5 paths or fewer that is an exact comparison. With more it is not exact: a change that keeps the count and leaves the five listed paths in place is missed, and the spec accepts that.
-- **later entry.** Any entry after the State line.
+- **uncommitted.** Stale when the count differs, or when a listed path is no longer uncommitted. It is not exact, and the spec accepts that: a further edit to a file that was already uncommitted is not seen, and with paths not listed (more than 5, or quoted names) a change that keeps the count and the listed paths is missed.
+A State line with an entry after it never reaches this check: it is "State unknown" (Rules for readers).
 
-Each of these is a case in `docs/handoff/tools/check_git_rules.py`, which passes on git 2.55.0 and fails under each mutation that brings back the earlier rules.
+The three git reasons are cases in `docs/handoff/tools/check_git_rules.py`, which passes on git 2.55.0 and fails under each mutation that brings back an earlier rule. The script does not parse `LOG.md`: the last-entry and later-entry rules are text rules, held by the tests below. The script also holds the list of git commands used here and checks that this spec writes each one.
 
 ## Making a manual `/clear` safe: options
 
@@ -179,16 +180,16 @@ Free, in a new `tests/test_handoff_state.py` plus changes to `tests/test_skills_
 
 - **Format agreement.** The State template line and the value table in this spec and in `skills/poc-checkpoint/SKILL.md` agree: the same six field names in the same order, and for each field the same set of fixed values (`detached`, `no commits`, `not a git repo`, `none`, `(uncommitted)`, `detached <short sha>`, `<n> paths:`). The `poc-start` template does not contain a `- State:` line.
 - **Exclusions agree.** The exclusion lists for both layouts are the same in this spec, in `poc-checkpoint` and in `poc-help`, and in `docs/handoff/tools/check_git_rules.py`. Neither list contains `.` on its own.
-- **Read-back before `/clear`.** In `poc-checkpoint`, the read-back step comes before any step whose text contains `/clear`, and the failure branch says to print no `/clear`. In `poc-log` and `poc-help` no `Next:` rule contains `/clear`. In `docs/workflow.md` every `/clear` is preceded in the same sentence by `/spike-loop:poc-checkpoint`, except the optional one after `poc-start`. No other exemption.
+- **Read-back before `/clear`.** In `poc-checkpoint`, the read-back step comes before any step whose text contains `/clear`, and the failure branch says to print no `/clear`. In `poc-log` and `poc-help` no `Next:` rule contains `/clear`. In `docs/workflow.md` every `/clear` is preceded in the same sentence by `/spike-loop:poc-checkpoint`. No exemption.
 - **One closing entry.** `poc-checkpoint` has exactly one step that appends an outcome entry, and that step names `State:`. The hand-off file is written before that entry.
 - **`pause` and topic.** The argument hint lists `pause`. The topic rule is the stated pattern and says to refuse `.` and `/`. The name is chosen by Read with `-2`, `-3`, the file is created with Write and never overwritten, and the text says no hand-off is written in the older layout.
-- **Place of use.** `poc-help` uses a State line only from the last entry, treats any later entry as stale, and has no fallback that reads the newest file in `handoffs/`.
-- **Staleness.** `poc-help` names the branch check, `merge-base --is-ancestor`, the log check with the exclusions, the count-and-listed-paths comparison and the later-entry rule. Every git call in `poc-help` and in the State step of `poc-checkpoint` has `--no-optional-locks`.
+- **Place of use.** `poc-help` uses a State line only from the last entry, treats a State with any later entry as "State unknown" (not stale), and has no fallback that reads the newest file in `handoffs/`.
+- **Staleness and commands.** Every git command written in `poc-help` and in the State step of `poc-checkpoint` is parsed out of the text and must be one of the `COMMANDS` in `check_git_rules.py`, argument order included, and each command the rules need must appear (`merge-base --is-ancestor <recorded sha> HEAD` in `poc-help`, the worktree commands in `poc-checkpoint`). Each is run with `--no-optional-locks`. `poc-help` names the count-and-listed-paths comparison.
 - **Field set.** The State template has exactly the six fields. The `unmerged worktrees` value grammar is exactly `<branch> | detached <short sha>`, optionally followed by `(uncommitted)`, so adding a path to it fails the test. The `poc-checkpoint` text says worktree paths are printed, not written.
 - **Every place that lists the outcomes** includes `pause`: the `poc-checkpoint` argument hint and steps (including the no-argument recommendation), the `poc-help` table row and Next rules, the `poc-log` Decision step, the `poc-start` template's Decision list, `docs/workflow.md` and `README.md`. The test holds the explicit list.
 - **Git rules.** `docs/handoff/tools/check_git_rules.py` runs in the suite (it is free and needs only git) and passes.
 - **Wiring untouched.** The existing layout tests pass unchanged.
-- **Mutation check** (`docs/handoff/tools/mutate.py`, as for the layout tests): drop the read-back, make an entry conditional again, drop the later-entry rule, add a worktree path to State, re-add the newest-file fallback, put `/clear` in a `poc-log` Next, remove the topic restriction, put `- State:` in the template, exclude `.` in the older layout, drop `SUMMARY.md` from the exclusions, drop `--no-optional-locks`, drop `merge-base --is-ancestor`, write the hand-off after the entry. Every mutation must fail at least one test. A reviewer pass then tries to break the tests by editing the skills, as in the F1 review.
+- **Mutation check** (`docs/handoff/tools/mutate.py`, as for the layout tests): drop the read-back, make an entry conditional again, drop the later-entry rule, add a worktree path to State, re-add the newest-file fallback, put `/clear` in a `poc-log` Next, remove the topic restriction, put `- State:` in the template, exclude `.` in the older layout, drop `SUMMARY.md` from the exclusions, drop `--no-optional-locks`, drop `merge-base --is-ancestor`, swap its arguments, write the hand-off after the entry, put `/clear` in a stale-row `Next:`, print `Next:` before the `POC.md` or `SUMMARY.md` step. Every mutation must fail at least one test. A reviewer pass then tries to break the tests by editing the skills, as in the F1 review.
 
 Manual and cold-start (paid, single runs, headless): see the plan.
 
@@ -197,7 +198,7 @@ Manual and cold-start (paid, single runs, headless): see the plan.
 - **A longer closing ritual.** Mitigation: one line, gathered with read-only git calls.
 - **Model-written State is wrong.** Git facts are read, not recalled. "Waiting on you" is the only judgement, and stale or missing State is flagged, not trusted.
 - **The unchecked route.** A session that acts on `resume:` straight from the log tail, or a user who skips `poc-help`, gets no staleness check. The plugin's own `Next:` lines always go through `poc-help`. P1a and P2 measure whether a session acts on `resume:` unprompted, and option C is the fix if that turns out to matter.
-- **Uncommitted comparison is approximate over 5 paths.** Stated in the staleness check.
+- **Uncommitted comparison is approximate.** Further edits to an already uncommitted file, and changes hidden behind unlisted paths, are missed. Stated in the staleness check.
 - **`pause` is a new loop word.** Every reader that maps Decisions needs a rule for it. The outcome-list test above holds the places.
 - **The model may not follow a `resume:` pointer** from the log tail after a clear. The probes measure it, interactively unmeasured.
 - **Branch names and topic names can be descriptive.** `LOG.md` already can hold such text. The rule against customer names in a public repo covers them, and the packager gap above is stated.

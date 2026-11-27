@@ -14,7 +14,7 @@ Each command that needs a tool runs the checker as its first step. A missing **r
 
 ## Baseline
 
-These come with a POSIX shell, so they are listed and not checked one by one: `date`, `mktemp`, `chmod`, `grep`, `ls`, `tail`, `sed`, `sh`. Claude Code runs its Bash tool in a POSIX shell on macOS and Linux, and in Git Bash on Windows when it is installed. On Windows without Git Bash, Claude Code's shell is PowerShell, where the checker cannot run: the commands say so and continue, and a command that needs a missing tool fails with its own error. Windows is untested.
+These come with a POSIX shell, so they are listed and not checked one by one: `date`, `mktemp`, `chmod`, `grep`, `ls`, `tail`, `sed`, `sh`. Claude Code runs its Bash tool in a POSIX shell on macOS and Linux, and in Git Bash on Windows when it is installed. On Windows without Git Bash, Claude Code's shell is PowerShell, where the checker cannot run: the commands say so and continue, and a command that needs a missing tool fails with its own error. Claude Code on Windows can also offer a PowerShell tool; the commands pre-approve the checker for the Bash tool only. Windows is untested.
 
 ## Not checked
 

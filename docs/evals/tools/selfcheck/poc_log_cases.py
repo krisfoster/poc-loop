@@ -29,6 +29,18 @@ bad = {  # one known defect each
 }
 CHECK_CALL = {"name": "Bash", "child": False, "input": '{"command": "sh \\"/p/scripts/check-prereqs\\" poc-log git python3:optional"}'}
 TIME_CALL = {"name": "Bash", "child": False, "input": '{"command": "python3 \\"/p/skills/poc-log/scripts/time_check.py\\" --root \\"/w\\" --docs poc-spec"}'}
+SCRIPT_CASES = ("fresh-log", "earlier-entries", "started-no-time", "timebox-exceeded", "within-timebox")
+
+
+def script_events(good_text):
+    """The script's tool call and output, as the event log would hold them for the good result."""
+    line = next(l for l in good_text.splitlines() if l.startswith("Elapsed "))
+    return "\n".join(json.dumps(e) for e in (
+        {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Bash",
+                                                          "input": {"command": 'python3 "/p/time_check.py" --root /w --docs poc-spec'}}]}},
+        {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": line + "\ntimebox: over"}]}}))
+
+
 CALLS = {"*": [CHECK_CALL, TIME_CALL], "missing-python": [CHECK_CALL], "missing-files": [CHECK_CALL]}
 cs = {c.id: c for c in cases.load_cases("evals/cases", "evals/fixtures", "poc-log/*")}
 rc = 0
@@ -41,8 +53,8 @@ for cid, (append, final) in good.items():
         if append: (ws/"poc-spec/LOG.md").open("a").write(ENTRY) if label == "good" else None
         if label == "bad":
             t = bad[cid][1](ws, final) or final
-        ctx = {"workspace": ws, "fixture": Path("evals/fixtures")/cs[cid].fixture, "summary": {"final_text": t, "tool_calls": CALLS.get(cid, CALLS["*"]), "permission_denials": []},
-               "before": before, "after": runner.snapshot(ws), "events_text": ""}
+        ctx = {"workspace": ws, "fixture": Path("evals/fixtures")/cs[cid].fixture, "summary": {"final_text": t, "tool_calls": CALLS.get(cid, CALLS["*"]), "permission_denials": []}, "events_text": script_events(final) if cid in SCRIPT_CASES else "",
+               "before": before, "after": runner.snapshot(ws)}
         res = graders.run_graders(cs[cid].graders, ctx)
         ok = all(r["passed"] for r in res)
         want = label == "good"

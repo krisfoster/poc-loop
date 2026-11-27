@@ -1,0 +1,4 @@
+# Keep scripts runnable from a Windows checkout (core.autocrlf would add CR to them).
+scripts/check-prereqs text eol=lf
+*.sh text eol=lf
+*.py text eol=lf

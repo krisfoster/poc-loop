@@ -24,3 +24,22 @@ No blockers, 8 major, 6 minor. Not checked by the reviewer: the full `allowManag
 Also from the review: the `engines` manifest field exists for a Claude Code version range (open question 1).
 
 Decided after the review: the checker is always run as `sh <path>`, so it does not depend on the executable bit surviving a plugin install.
+
+## R.2, implementation (2026-11-27, independent `reviewer` agent, on `git diff evals-phase-2..prereqs`)
+
+No blockers, 2 major, 8 minor. Unit tests passed in the reviewer's run (205). Not checked by the reviewer: the full diffs of `tests/test_skills_contract.py`, `tests/test_eval_harness.py` and `tests/fake_claude.py`, `docs/prereqs/plan.md`, real Git Bash and Debian runs, daylight-saving edge cases. Findings 2 and 3 were reproduced before fixing.
+
+| # | Severity | Finding | Handled |
+|---|---|---|---|
+| 1 | MAJOR | The plugin copy, now an additional directory, was shared by every run in a suite and could be edited by a run with `Edit` or `Write`, unnoticed | Each run copies the plugin into its own temp directory; a run that changes its copy is marked `invalid`. Tests: an editing run is invalid, the shared copy is untouched, the next run is fine |
+| 2 | MAJOR | An invalid date or time (`2026-02-30`, `25:00`) crashed with a traceback that printed absolute paths | Caught: `time check: the Started: date in <docs>/POC.md is not a valid date and time`, exit 3; an invalid log heading time is skipped; a bad `--now` is a clean error |
+| 3 | MINOR | A timebox with no number (`nd`) could come out `over` | At least one number-and-unit part is required, joined only by spaces, commas, `+` or `and`; otherwise `unknown` |
+| 4 | MINOR | `TIMEBOX_RE` crossed lines; `Started:` was taken from anywhere; an unpadded hour fell back silently | Only the header line starting `Started:` is read; `9:05` is accepted |
+| 5 | MINOR | A dated heading inside a code fence was counted | Fenced lines are skipped |
+| 6 | MINOR | Windows git version kept a trailing dot; no `.gitattributes`, so a CRLF checkout broke the checker; the guard did not say what to do on `prereqs: usage error` | Version pattern fixed (test with `2.45.1.windows.1`); `.gitattributes` keeps the checker, `*.sh` and `*.py` LF; the guard treats a usage error as "the check cannot run" |
+| 7 | MINOR | "The graders check the script's values" was overstated: the pattern matched fixture constants, so a made-up elapsed time passed | New grader `reply_echoes_tool_output`: one line of the reply must hold every number the script printed, read from the event log. Re-graded on the saved re-run, only the no-numbers run fails. Wording in findings and the changelog corrected |
+| 8 | MINOR | The spec still described a `poc-research/missing-python` case that stops; it said the contract test catches any new tool | Spec text corrected: the case is `poc-sources/missing-python`, the public-only path has no eval, and the test catches only registry tools |
+| 9 | MINOR | `input_regex` (and `pattern`) were not compiled at load; inputs are cut at 600 characters | Both compiled when cases load (test); the 600-character limit is documented |
+| 10 | MINOR | An exact interpreter grant counts as narrow but can run a workspace file the model edits | Documented in `evals/README.md`; the `poc-verify` cases that use it grant no `Edit` or `Write` (checked) |
+
+Claims the reviewer confirmed: PowerShell is the Windows shell without Git Bash (and a PowerShell tool may be offered with it, now noted in `docs/prerequisites.md`), `additionalDirectories` lets a directory through the read block, the packager's `rsync` flags work with macOS openrsync, the run and case counts in the changelog, and the checker's whole-word matching.

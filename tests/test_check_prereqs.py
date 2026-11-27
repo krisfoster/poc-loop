@@ -98,6 +98,17 @@ class CheckerTests(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("ok: python3 3.9.0", out)
 
+    def test_windows_git_version_has_no_trailing_dot(self):
+        fakebin = self.fake("git", 'echo "git version 2.45.1.windows.1"\n')
+        code, out, _ = self.run_checker("poc-log", "git", hide=["git"], extra_bin=fakebin)
+        self.assertEqual(out.splitlines()[0], "ok: git 2.45.1", out)
+
+    def test_checker_keeps_lf_line_endings(self):
+        self.assertNotIn(b"\r", CHECKER.read_bytes())
+        attrs = (ROOT / ".gitattributes").read_text().splitlines()
+        self.assertIn("scripts/check-prereqs text eol=lf", attrs)
+        self.assertIn("*.py text eol=lf", attrs)
+
     def test_agent_names_read_as_agents(self):
         code, out, _ = self.run_checker("packager", "rsync", hide=["rsync"])
         self.assertEqual(code, 1, out)

@@ -88,6 +88,11 @@
       "tool": "Bash",
       "input_regex": "time_check\\.py",
       "min": 1
+    },
+    {
+      "name": "reply_shows_the_script_output",
+      "type": "reply_echoes_tool_output",
+      "input_regex": "time_check\\.py"
     }
   ]
 }

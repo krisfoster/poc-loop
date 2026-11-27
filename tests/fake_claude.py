@@ -36,6 +36,9 @@ def main():
         json.dump(seen, f)
 
     token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "")
+    if mode == "editplugin":  # a run that writes into the plugin it was given
+        with open(os.path.join(plugin_dir, "scripts", "check-prereqs"), "a") as fh:
+            fh.write("# changed by a run\n")
     if mode == "crash":
         sys.exit(1)  # no output at all, like a bad token or a CLI error
     if mode == "stderrleak":

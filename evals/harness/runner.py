@@ -216,16 +216,21 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
         if parents:
             raise RunnerError("instruction files above the workspace would be loaded: %s" % ", ".join(parents))
         make_workspace(Path(fixtures_dir) / case.fixture, ws, case.git, home)
+        # Each run gets its own copy of the plugin: the copy is an additional directory the session may
+        # write to, and a change must neither reach later runs nor go unnoticed.
+        run_plugin = tmp / "plugin"
+        shutil.copytree(str(plugin_dir), str(run_plugin))
+        plugin_before = snapshot(run_plugin)
         run_cwd = ws / case.cwd  # the session starts here, the diff and the graders still look at the whole workspace
         settings = copy.deepcopy(SETTINGS)
         # The plugin copy holds only plugin files (no .env), and its bundled scripts must be runnable even
         # though reads outside the working directory are blocked.
-        settings["permissions"]["additionalDirectories"] = [str(plugin_dir)]
+        settings["permissions"]["additionalDirectories"] = [str(run_plugin)]
         if case.add_root_dir:
             settings["permissions"]["additionalDirectories"].append(str(ws))
         before = snapshot(ws)
         cmd = list(claude_cmd) + [
-            "-p", case.prompt, "--plugin-dir", str(plugin_dir),
+            "-p", case.prompt, "--plugin-dir", str(run_plugin),
             "--settings", json.dumps(settings),
             "--allowedTools"] + list(case.allowed_tools) + [
             "--output-format", "stream-json", "--verbose", "--max-budget-usd", str(case.max_cost_usd)]
@@ -262,6 +267,10 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
             result.update(status="harness_failure", reason="no init or result event (exit %s)" % code)
         else:
             violations = ev.check_isolation(init, config_dir=str(home / "cc"), cwd=str(run_cwd))
+            changed = diff_snapshots(plugin_before, snapshot(run_plugin))
+            touched = changed["added"] + changed["modified"] + changed["deleted"]
+            if touched:
+                violations.append("the run changed its plugin copy: %s" % ", ".join(touched[:5]))
             if violations:
                 result.update(status="invalid", reason="; ".join(violations))
             elif summary["result_subtype"] == "error_max_budget_usd" or summary["terminal_reason"] == "budget_exhausted":

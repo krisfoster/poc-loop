@@ -28,15 +28,16 @@ SKILL_PARA = ('**Prerequisites.** Before anything else, run `%s {cmd} {tools}` a
               'another with `;` or `&&`, and read its output. If the last line '
               'is `prereqs: missing ...`, print each `MISSING:` line as it is, change nothing, and end with '
               '`Next: install what is missing, then run /spike-loop:{cmd} again`. Print any `skipped:` line and leave '
-              'out the step that needs that tool. If the check cannot run (refused, not found, or no POSIX shell), say '
-              'so in one line and continue: a command that needs a missing tool will fail with its own error. This '
+              'out the step that needs that tool. If the check cannot run (refused, not found, no POSIX shell, or a '
+              '`prereqs: usage error` line), say so in one line and continue: a command that needs a missing tool will fail with its own error. This '
               'check covers any agent this command starts: when you brief an agent, say "prerequisites checked".') % CHECK
 AGENT_PARA = ('**Prerequisites.** Skip this if the command that started you, or your brief, says prerequisites were '
               'checked. Otherwise, before anything else, run `%s {cmd} {tools}` as a command on its own, never joined to '
               'another with `;` or `&&`, and read its output. If the last line '
               'is `prereqs: missing ...`, print each `MISSING:` line as it is, change nothing, and stop, reporting '
               'what is missing. Print any `skipped:` line and leave out the step that needs that tool. If the check '
-              'cannot run (refused, not found, or no POSIX shell), say so in one line and continue.') % CHECK
+              'cannot run (refused, not found, no POSIX shell, or a `prereqs: usage error` line), say so in one line and '
+              'continue.') % CHECK
 
 USES = {  # how a body shows it runs the tool
     "git": re.compile(r"`git |git -C|git --no-optional-locks"),

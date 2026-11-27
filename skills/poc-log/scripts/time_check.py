@@ -16,10 +16,11 @@ import re
 import sys
 from pathlib import Path
 
-STARTED_RE = re.compile(r"Started:\s*(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2}))?")
-TIMEBOX_RE = re.compile(r"Timebox[^:|]*:\s*([^|\n]*?)\s*(?:\||$)", re.M)
-ENTRY_RE = re.compile(r"^## (\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))?(?:\s|$)", re.M)
-PART_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(minutes?|mins?|m|hours?|hrs?|h|days?|d)", re.I)
+STARTED_RE = re.compile(r"^Started:\s*(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}):(\d{2}))?")
+TIMEBOX_RE = re.compile(r"\|\s*Timebox[^:|]*:\s*([^|]*?)\s*(?:\||$)")
+ENTRY_RE = re.compile(r"^## (\d{4}-\d{2}-\d{2})(?: (\d{1,2}):(\d{2}))?(?:\s|$)")
+PART_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(minutes?|mins?|m|hours?|hrs?|h|days?|d)\b", re.I)
+SEPARATORS_RE = re.compile(r"(?:\s|,|\+|\band\b)*", re.I)
 UNIT_MINUTES = {"m": 1, "h": 60, "d": 1440}
 
 
@@ -28,14 +29,30 @@ class Stop(Exception):
 
 
 def parse_timebox(text):
-    """Minutes, or None when the text is not a sum of number-and-unit parts."""
+    """Minutes, or None unless the text is one or more number-and-unit parts joined by spaces,
+    commas, '+' or 'and'."""
     t = text.strip()
-    if not t or PART_RE.sub("", t).strip(" ,+and"):
+    parts = PART_RE.findall(t)
+    if not parts or not SEPARATORS_RE.fullmatch(PART_RE.sub(" ", t)):
         return None
-    total = 0.0
-    for num, unit in PART_RE.findall(t):
-        total += float(num) * UNIT_MINUTES[unit[0].lower()]
-    return total
+    return sum(float(num) * UNIT_MINUTES[unit[0].lower()] for num, unit in parts)
+
+
+def entries_of(log):
+    """(date, hour, minute) for each dated entry heading outside code fences."""
+    out, fenced = [], False
+    for line in log.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        m = None if fenced else ENTRY_RE.match(line)
+        if m:
+            out.append(m.groups())
+    return out
+
+
+def at(day, hour, minute):
+    return datetime.datetime.strptime("%s %02d:%s" % (day, int(hour), minute), "%Y-%m-%d %H:%M")
 
 
 def elapsed_text(minutes):
@@ -56,16 +73,27 @@ def check(root, docs, now):
             texts[name] = p.read_text(encoding="utf-8", errors="replace")
         except OSError:
             raise Stop("%s cannot be read" % rel(name))
-    started = STARTED_RE.search(texts["POC.md"])
+    header = next((l.strip() for l in texts["POC.md"].splitlines() if l.strip().startswith("Started:")), "")
+    started = STARTED_RE.match(header)
     if not started:
         raise Stop("no Started: date in %s" % rel("POC.md"))
-    entries = ENTRY_RE.findall(texts["LOG.md"])
-    day, hm = started.group(1), started.group(2)
-    if not hm:
-        timed = [e for e in entries if e[0] == day and e[1]]
-        hm = timed[0][1] if timed else "00:00"
-    start = datetime.datetime.strptime("%s %s" % (day, hm), "%Y-%m-%d %H:%M")
-    box_match = TIMEBOX_RE.search(texts["POC.md"])
+    entries = entries_of(texts["LOG.md"])
+    day, hour, minute = started.groups()
+    try:
+        if hour is not None:
+            start = at(day, hour, minute)
+        else:
+            start = at(day, 0, "00")
+            for e_day, e_hour, e_min in entries:
+                if e_day == day and e_hour is not None:
+                    try:
+                        start = at(e_day, e_hour, e_min)
+                        break
+                    except ValueError:
+                        continue
+    except ValueError:
+        raise Stop("the Started: date in %s is not a valid date and time" % rel("POC.md"))
+    box_match = TIMEBOX_RE.search(header)
     box_text = box_match.group(1) if box_match else ""
     box = parse_timebox(box_text)
     minutes = (now - start).total_seconds() / 60
@@ -86,7 +114,11 @@ def main(argv=None):
     ap.add_argument("--docs", required=True)
     ap.add_argument("--now", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
-    now = datetime.datetime.strptime(a.now, "%Y-%m-%d %H:%M") if a.now else datetime.datetime.now()
+    try:
+        now = datetime.datetime.strptime(a.now, "%Y-%m-%d %H:%M") if a.now else datetime.datetime.now()
+    except ValueError:
+        print("time check: --now is not a valid date and time")
+        return 3
     try:
         line, state = check(a.root, a.docs, now)
     except Stop as exc:

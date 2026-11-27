@@ -30,4 +30,4 @@ Consequences for the plan: eval cases do not need to grant the checker or the ti
 
 Mean estimated cost per `poc-log` run stayed about $0.0045 (the guard adds one Bash call).
 
-**Decision (maintainer, 2026-11-27):** the rewording is kept as a known Haiku limit. The instruction to copy the line exactly stays. The `poc-log` time graders now check that one line of the reply holds the script's elapsed time, timebox and count, in any wording; re-graded on the saved re-run, only the run with no numbers fails.
+**Decision (maintainer, 2026-11-27):** the rewording is kept as a known Haiku limit. The instruction to copy the line exactly stays. The `poc-log` time cases now check, in any wording, that one line of the reply holds every number the script printed, in order (`reply_echoes_tool_output`, read from the script's own output in the event log, so a made-up elapsed time fails), plus the fixture's timebox and entry count. Re-graded on the saved re-run, only the run with no numbers fails.

@@ -110,6 +110,39 @@ class TimeCheckTests(unittest.TestCase):
         code, out, _ = self.run_it(docs=".")
         self.assertEqual((code, out), (3, ["time check: POC.md is missing"]))
 
+    def test_invalid_dates_and_times_stop_cleanly(self):
+        for started in ("2026-02-30 10:00", "2026-11-27 25:00"):
+            self.write(started=started)
+            code, out, err = self.run_it()
+            self.assertEqual((code, out), (3, ["time check: the Started: date in poc-spec/POC.md is not a valid date and time"]), err)
+            self.assertEqual(err, "")
+        self.write(started="2026-11-25", entries=("2026-11-25 25:00",))
+        code, out, err = self.run_it()
+        self.assertEqual((code, err), (0, ""), out)  # an invalid log time is skipped, midnight is used
+        self.assertEqual(out[0], "Elapsed 66h 0m of 2 hours, 1 entry.")
+
+    def test_a_timebox_with_no_number_is_unknown(self):
+        for box in ("nd", "and", "hours", "a few hours", "2 hours and some"):
+            self.write(started="2026-11-27 16:00", timebox=box)
+            self.assertLines("Elapsed 2h 0m of %s, 1 entry." % box, "unknown")
+        self.write(started="2026-11-27 16:00", timebox="1h and 30m")
+        self.assertLines("Elapsed 2h 0m of 1h and 30m, 1 entry.", "over")
+
+    def test_only_the_header_line_is_read(self):
+        d = self.root / "poc-spec"
+        self.write()
+        (d / "POC.md").write_text("# POC: Timebox demo\n\nStarted: 2026-11-27 16:00 | Timebox (first pass): 2 hours | Tier: 1\n\n"
+                                  "## Question\nStarted: 2020-01-01 00:00 is not the header\n")
+        self.assertLines("Elapsed 2h 0m of 2 hours, 1 entry.", "within")
+
+    def test_an_unpadded_hour_is_read(self):
+        self.write(started="2026-11-27 9:05")
+        self.assertLines("Elapsed 8h 55m of 2 hours, 1 entry.", "over")
+
+    def test_headings_inside_a_code_fence_are_not_entries(self):
+        self.write(log_extra="\n```\n## 2026-11-26 10:00 an example in a fence\n```\n")
+        self.assertLines("Elapsed 47h 30m of 2 hours, 1 entry.", "over")
+
     def test_messages_never_hold_an_absolute_path(self):
         code, out, err = self.run_it()
         self.assertNotIn(str(self.root), "\n".join(out) + err)

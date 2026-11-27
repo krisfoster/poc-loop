@@ -41,6 +41,12 @@ def check_spec(spec):
     for key in ("count", "min", "max", "max_lines", "code", "timeout_s"):
         if key in spec and (not isinstance(spec[key], int) or isinstance(spec[key], bool)):
             out.append("'%s' must be an integer" % key)
+    for key in ("pattern", "input_regex"):
+        if key in spec:
+            try:
+                re.compile(spec[key])
+            except (re.error, TypeError) as exc:
+                out.append("'%s' is not a valid regular expression: %s" % (key, exc))
     if "target" in spec and spec["target"] not in TARGETS:
         out.append("'target' must be one of %s" % ", ".join(TARGETS))
     fn = CHECKS.get(spec.get("type"))
@@ -386,6 +392,53 @@ def git_clean_history(ctx, spec):
     staged = git("diff", "--cached", "--name-only").stdout.split()
     ok = n == want and not staged
     return ok, "%d commits (expected %d), staged: %s" % (n, want, ", ".join(staged[:5]) or "none")
+
+
+def _tool_outputs(events_text, input_regex):
+    """Output text of each tool call whose JSON input matches input_regex, in order."""
+    import json
+    calls, outputs = {}, []
+    for line in (events_text or "").splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(e, dict):
+            continue
+        for item in ((e.get("message") or {}).get("content") or []) if isinstance((e.get("message") or {}).get("content"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "tool_use" and re.search(input_regex, json.dumps(item.get("input", {}))):
+                calls[item.get("id")] = True
+            elif item.get("type") == "tool_result" and item.get("tool_use_id") in calls:
+                c = item.get("content")
+                if isinstance(c, list):
+                    c = "\n".join(b.get("text", "") for b in c if isinstance(b, dict))
+                outputs.append(c or "")
+    return outputs
+
+
+def _subsequence(want, have):
+    it = iter(have)
+    return all(any(x == y for y in it) for x in want)
+
+
+@grader("reply_echoes_tool_output", required=["input_regex"])
+def reply_echoes_tool_output(ctx, spec):
+    """One line of the final text holds every number from the first line of the last output of a tool
+    call matching input_regex, in the same order (wording may differ). Fails when no such call exists
+    or its output line has no numbers."""
+    outs = _tool_outputs(ctx.get("events_text"), spec["input_regex"])
+    if not outs:
+        return False, "no tool call matching %s with an output" % spec["input_regex"]
+    first = (outs[-1].strip().splitlines() or [""])[0]
+    want = re.findall(r"\d+", first)
+    if not want:
+        return False, "the tool output line has no numbers: %r" % first[:80]
+    for line in (ctx["summary"].get("final_text") or "").splitlines():
+        if _subsequence(want, re.findall(r"\d+", line)):
+            return True, "the reply shows %s from %r" % (" ".join(want), first[:80])
+    return False, "no line of the reply shows %s from %r" % (" ".join(want), first[:80])
 
 
 def run_graders(specs, ctx):

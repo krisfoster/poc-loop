@@ -62,7 +62,7 @@ probe() {
   case "$1" in
     git)
       out=$(git --version 2>/dev/null) || return 1
-      VER=$(echo "$out" | sed -n 's/^git version \([0-9][0-9.]*\).*/\1/p')
+      VER=$(echo "$out" | sed -n 's/^git version \([0-9][0-9]*\(\.[0-9][0-9]*\)*\).*/\1/p')
       ;;
     python3)
       out=$(python3 -c 'import sys; print("%d.%d.%d" % sys.version_info[:3]); sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null)

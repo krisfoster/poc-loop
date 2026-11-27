@@ -10,3 +10,5 @@ check-file = false
 
 [default.extend-words]
 # Intentional words that look like typos go here, one per line, as: word = "word"
+# A deliberately unparseable timebox in the time check tests (tests/test_time_check.py).
+nd = "nd"

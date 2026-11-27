@@ -206,6 +206,16 @@ class CommandTests(Base):
         self.assertTrue(case, errs)
         self.assertTrue(runner.broad_grants(case))
 
+    def test_bad_patterns_are_rejected_when_cases_load(self):
+        base = {"id": "basic", "stage": "poc-log", "set": "tune", "prompt": "x", "fixture": "poc-log-basic",
+                "allowed_tools": ["Read"]}
+        path = str(EVALS / "cases" / "poc-log" / "basic.json")
+        for bad in ({"type": "final_text_regex", "pattern": "("},
+                    {"type": "tool_call_count", "tool": "Bash", "input_regex": "[a-"}):
+            case, errs = cases_mod.validate(dict(base, graders=[bad]), path, EVALS / "fixtures")
+            self.assertIsNone(case, bad)
+            self.assertTrue(any("not a valid regular expression" in e for e in errs), errs)
+
     def test_command_exit_spec_is_validated(self):
         base = {"id": "basic", "stage": "poc-log", "set": "tune", "prompt": "x", "fixture": "poc-log-basic",
                 "allowed_tools": ["Read"]}
@@ -292,6 +302,41 @@ class QuestionTests(Base):
         self.assertTrue(self.grade({"type": "questions_before_write", "max": 0}))
 
 
+def _tool_events(command, output):
+    import json
+    return "\n".join([
+        json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": command}}]}}),
+        json.dumps({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": output}]}}),
+    ])
+
+
+class EchoTests(Base):
+    SPEC = {"type": "reply_echoes_tool_output", "input_regex": "time_check\\.py"}
+
+    def test_reply_shows_the_numbers_the_tool_printed(self):
+        self.events_text = _tool_events('python3 "/p/time_check.py" --root x', "Elapsed 47h 15m of 2 hours, 2 entries.\ntimebox: over")
+        for reply in ("Elapsed 47h 15m of 2 hours, 2 entries.", "Time check: within the timebox (47h 15m of 2 hours, 2 entries)"):
+            self.summary["final_text"] = "Logged.\n" + reply + "\nNext: x"
+            self.assertTrue(self.grade(self.SPEC), reply)
+        for reply in ("Elapsed 47h 16m of 2 hours, 2 entries.", "Elapsed 47h 15m of 2 hours, 3 entries.",
+                      "Time check: the timebox is over.", "Elapsed 47h 15m\nof 2 hours, 2 entries."):
+            self.summary["final_text"] = "Logged.\n" + reply + "\nNext: x"
+            self.assertFalse(self.grade(self.SPEC), reply)
+
+    def test_no_matching_tool_call_fails(self):
+        self.events_text = _tool_events("date", "2026-11-27")
+        self.summary["final_text"] = "Elapsed 47h 15m of 2 hours, 2 entries."
+        self.assertFalse(self.grade(self.SPEC))
+
+    def test_the_last_matching_call_counts(self):
+        import json
+        first = _tool_events('python3 "/p/time_check.py"', "Elapsed 1h 0m of 2 hours, 1 entry.\ntimebox: within")
+        second = _tool_events('python3 "/p/time_check.py"', "Elapsed 1h 2m of 2 hours, 2 entries.\ntimebox: within").replace('"t1"', '"t2"')
+        self.events_text = first + "\n" + second
+        self.summary["final_text"] = "Elapsed 1h 2m of 2 hours, 2 entries."
+        self.assertTrue(self.grade(self.SPEC))
+
+
 class GitTests(Base):
     def git(self, *args):
         import subprocess
@@ -337,7 +382,7 @@ class LibraryTests(unittest.TestCase):
         planned = {"file_exists", "file_regex", "final_text_regex", "headings_match", "no_placeholders", "line_cap",
                    "no_em_dash", "file_unchanged", "file_prefix_unchanged", "executable", "command_exit",
                    "tool_call_count", "no_tracked_file_modified", "canary_absent", "questions_before_write",
-                   "git_clean_history", "files_matching"}
+                   "git_clean_history", "files_matching", "reply_echoes_tool_output"}
         self.assertLessEqual(planned, set(g.GRADERS))
 
     def test_every_grader_is_tested_here(self):

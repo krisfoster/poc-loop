@@ -73,7 +73,7 @@ Public research works immediately. To let the researcher read your internal docu
 
 ## Requirements
 
-Claude Code with plugin support. Python 3.9+ standard library for the sources helper. `gitleaks` and `typos` are used by `/spike-loop:poc-harden` if installed, and skipped with a note if not.
+Claude Code with plugin support, `git`, and a POSIX shell (Git Bash on Windows). Python 3.9+ (standard library) for the research sources helper and the `poc-log` time check, and `rsync` for the packager's clean-clone test. `gitleaks` and `typos` are used by `/spike-loop:poc-harden` if installed, and skipped with a note if not. Each command checks what it needs before it starts and says how to install anything missing. Details: [`docs/prerequisites.md`](docs/prerequisites.md).
 
 ## Development
 

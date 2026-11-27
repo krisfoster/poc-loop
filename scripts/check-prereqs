@@ -1,0 +1,116 @@
+#!/bin/sh
+# Spike Loop prerequisite checker and registry (docs/prereqs/spec.md, docs/prerequisites.md).
+# Usage: sh check-prereqs <command> <tool>[:optional]...
+# Prints one line per tool (ok:, MISSING:, skipped:) and a last line: prereqs: ok | prereqs: missing <tools>.
+# Exit 0 when nothing required is missing, 1 when something required is missing, 2 on a usage error.
+# Reads nothing, writes nothing, prints no path and no environment value. POSIX sh only.
+
+COMMANDS="debugger implementer packager poc-build poc-checkpoint poc-debug poc-harden poc-help poc-log poc-package poc-research poc-review poc-sources poc-start poc-verify researcher reviewer reviewer-lite verifier"
+
+usage() {
+  echo "prereqs: usage error: $1"
+  exit 2
+}
+
+known() {
+  for k in $2; do
+    [ "$k" = "$1" ] && return 0
+  done
+  return 1
+}
+
+# Who needs the tool, as the user knows it.
+who() {
+  case "$1" in
+    poc-*) echo "/spike-loop:$1" ;;
+    *) echo "the $1 agent" ;;
+  esac
+}
+
+# What the command uses the tool for.
+feature() {
+  case "$1:$2" in
+    git:*) echo "finding the repo root and reading its state" ;;
+    python3:poc-log) echo "the time check" ;;
+    python3:poc-research) echo "the research sources check" ;;
+    python3:poc-sources) echo "the research sources helper" ;;
+    python3:*) echo "its helper script" ;;
+    rsync:*) echo "the clean-clone test" ;;
+    gitleaks:*) echo "the secret scan" ;;
+    typos:*) echo "the spell check" ;;
+  esac
+}
+
+# How to install, for macOS, Debian or Ubuntu and Windows. The backticks are literal text for the user.
+# shellcheck disable=SC2016
+install() {
+  case "$1" in
+    git) echo 'macOS: `xcode-select --install` or `brew install git`; Debian or Ubuntu: `sudo apt install git`; Windows: install Git for Windows (https://git-scm.com/download/win)' ;;
+    python3) echo 'macOS: `xcode-select --install` or `brew install python`; Debian or Ubuntu: `sudo apt install python3`; Windows: install Python 3 from https://www.python.org and make sure `python3` runs in Git Bash' ;;
+    rsync) echo 'macOS: `brew install rsync`; Debian or Ubuntu: `sudo apt install rsync`; Windows: Git for Windows does not include it, so run Claude Code in WSL or install rsync for Git Bash' ;;
+    gitleaks) echo 'macOS: `brew install gitleaks`; Debian or Ubuntu and Windows: see https://github.com/gitleaks/gitleaks#installing' ;;
+    typos) echo 'macOS: `brew install typos-cli`; Debian or Ubuntu and Windows: see https://github.com/crate-ci/typos#install' ;;
+  esac
+}
+
+# Sets VER (the version, or empty) and returns 0 when the tool is usable. For a python3 that is
+# there but too old, sets FOUND to its version. Runs in the current shell, never in $(...).
+probe() {
+  VER=""
+  FOUND=""
+  command -v "$1" >/dev/null 2>&1 || return 1
+  case "$1" in
+    git)
+      out=$(git --version 2>/dev/null) || return 1
+      VER=$(echo "$out" | sed -n 's/^git version \([0-9][0-9.]*\).*/\1/p')
+      ;;
+    python3)
+      out=$(python3 -c 'import sys; print("%d.%d.%d" % sys.version_info[:3]); sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null)
+      rc=$?
+      v=$(echo "$out" | sed -n '1s/^\([0-9][0-9.]*\).*/\1/p')
+      if [ "$rc" -ne 0 ]; then
+        FOUND=$v
+        return 1
+      fi
+      VER=$v
+      ;;
+    rsync)
+      rsync --version >/dev/null 2>&1 || return 1
+      ;;
+  esac
+  return 0
+}
+
+[ $# -ge 2 ] || usage "expected <command> <tool>..."
+cmd=$1
+shift
+known "$cmd" "$COMMANDS" || usage "unknown command $cmd"
+
+missing=""
+for spec in "$@"; do
+  case "$spec" in
+    *:optional) tool=${spec%:optional}; optional=1 ;;
+    *:*) usage "unknown mark in $spec" ;;
+    *) tool=$spec; optional=0 ;;
+  esac
+  known "$tool" "git python3 rsync gitleaks typos" || usage "unknown tool $tool"
+  if probe "$tool"; then
+    if [ -n "$VER" ]; then echo "ok: $tool $VER"; else echo "ok: $tool"; fi
+  elif [ "$optional" -eq 1 ]; then
+    echo "skipped: $tool is not installed, so $(who "$cmd") leaves out $(feature "$tool" "$cmd"). To include it, install $tool ($(install "$tool")) and run the command again."
+  else
+    name=$tool
+    [ "$tool" = "python3" ] && name="python3 3.9 or later"
+    found=""
+    [ -n "$FOUND" ] && found=" (found $FOUND)"
+    echo "MISSING: $name is needed by $(who "$cmd") for $(feature "$tool" "$cmd")$found. Install it ($(install "$tool")), then run the command again."
+    missing="$missing $tool"
+  fi
+done
+
+if [ -n "$missing" ]; then
+  echo "prereqs: missing${missing}"
+  exit 1
+fi
+echo "prereqs: ok"
+exit 0

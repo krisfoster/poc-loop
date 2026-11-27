@@ -1,0 +1,46 @@
+{
+  "id": "partial-answers",
+  "stage": "poc-start",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "Tier, visibility, deal and timebox given, the rest missing: asks only for what is missing",
+  "prompt": "/spike-loop:poc-start Webhook HMAC check. Tier 1. Repo visibility: private. Deal: none. Timebox: 2 hours.",
+  "fixture": "start-empty",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)",
+    "Bash(chmod *)",
+    "Bash(test *)"
+  ],
+  "timeout_s": 420,
+  "max_cost_usd": 1.0,
+  "graders": [
+    {
+      "name": "asks_for_the_rest",
+      "type": "questions_before_write",
+      "min": 1,
+      "forbid_keywords": [
+        "public",
+        "private",
+        "visibility",
+        "deal",
+        "tier",
+        "timebox"
+      ]
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    },
+    {
+      "name": "no_em_dash_in_reply",
+      "type": "no_em_dash",
+      "target": "final_text"
+    }
+  ]
+}

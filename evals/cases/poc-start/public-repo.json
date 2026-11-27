@@ -1,0 +1,144 @@
+{
+  "id": "public-repo",
+  "stage": "poc-start",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "A public repo: the files are written, the confidentiality notice is given, and .gitignore is not edited",
+  "prompt": "/spike-loop:poc-start Webhook HMAC check. Tier 1. Repo visibility: public. Deal: none. Question: can a small receiver verify an HMAC-SHA256 webhook signature computed over the raw request body? Assumptions: 1. the signature is over the raw body, which could be wrong if the provider signs the parsed JSON; 2. the header holds a hex digest, which could be base64 instead. Success check: manual, send the provider's test event and see 'signature ok' in the receiver log. In scope: the HMAC check. Out of scope: persistence and retries. Timebox: 2 hours.",
+  "fixture": "start-empty",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)",
+    "Bash(chmod *)",
+    "Bash(test *)"
+  ],
+  "timeout_s": 420,
+  "max_cost_usd": 1.0,
+  "graders": [
+    {
+      "name": "headings_match_template",
+      "type": "headings_match",
+      "path": "poc-spec/POC.md",
+      "headings": [
+        {
+          "pattern": "# POC: (?!<)\\S.*"
+        },
+        "## Question",
+        "## Success check",
+        "## Assumptions and risks (riskiest first)",
+        "## In scope",
+        "## Out of scope",
+        "## Manual check (only if verify.sh cannot do it)"
+      ]
+    },
+    {
+      "name": "no_placeholders_in_poc",
+      "type": "no_placeholders",
+      "path": "poc-spec/POC.md"
+    },
+    {
+      "name": "poc_within_line_limit",
+      "type": "line_cap",
+      "path": "poc-spec/POC.md",
+      "max_lines": 40
+    },
+    {
+      "name": "header_line_filled",
+      "type": "file_regex",
+      "path": "poc-spec/POC.md",
+      "pattern": "^Started: \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} \\| Timebox \\(first pass\\): 2 hours \\| Tier: 1 \\| Deal: none \\| Repo visibility: public$",
+      "flags": "m",
+      "count": 1
+    },
+    {
+      "name": "log_has_poc_started_entry",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} PoC started$",
+      "flags": "m",
+      "count": 1
+    },
+    {
+      "name": "verify_sh_executable",
+      "type": "executable",
+      "path": "verify.sh"
+    },
+    {
+      "name": "verify_sh_stub_fails",
+      "type": "command_exit",
+      "argv": [
+        "./verify.sh"
+      ],
+      "nonzero": true
+    },
+    {
+      "name": "claude_md_wiring_exact",
+      "type": "file_regex",
+      "path": "CLAUDE.md",
+      "pattern": "Docs\\ folder:\\ `poc\\-spec/`\\.\\ All\\ paths\\ are\\ relative\\ to\\ the\\ repo\\ root\\.\\ At\\ session\\ start\\ read\\ `poc\\-spec/POC\\.md`\\ and\\ the\\ last\\ 40\\ lines\\ of\\ `poc\\-spec/LOG\\.md`\\.\\ Stay\\ within\\ `poc\\-spec/POC\\.md`\\.\\ Park\\ new\\ ideas\\ in\\ `poc\\-spec/LOG\\.md`\\ under\\ Later\\.\\ Never\\ claim\\ done\\ without\\ the\\ output\\ of\\ `\\./verify\\.sh`\\ or\\ the\\ manual\\ check\\.\\ Hand\\-offs,\\ specs\\ and\\ plans\\ for\\ this\\ PoC\\ go\\ under\\ `poc\\-spec/`\\.",
+      "flags": "",
+      "count": 1
+    },
+    {
+      "name": "gitignore_not_edited",
+      "type": "file_exists",
+      "path": ".gitignore",
+      "exists": false
+    },
+    {
+      "name": "no_root_poc",
+      "type": "file_exists",
+      "path": "POC.md",
+      "exists": false
+    },
+    {
+      "name": "readme_untouched",
+      "type": "no_tracked_file_modified"
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    },
+    {
+      "name": "no_em_dash_in_written_files",
+      "type": "no_em_dash",
+      "target": "changed"
+    },
+    {
+      "name": "no_em_dash_in_reply",
+      "type": "no_em_dash",
+      "target": "final_text"
+    },
+    {
+      "name": "next_names_research_or_verify",
+      "type": "final_text_regex",
+      "pattern": "^Next: .*?/spike-loop:poc-(research|verify)",
+      "flags": "m",
+      "min": 1
+    },
+    {
+      "name": "did_not_re_ask",
+      "type": "questions_before_write",
+      "forbid_keywords": [
+        "public",
+        "private",
+        "visibility",
+        "deal",
+        "tier",
+        "timebox"
+      ]
+    },
+    {
+      "name": "confidentiality_notice",
+      "type": "final_text_regex",
+      "pattern": "(?i)customer names|deal details|\\.gitignore",
+      "flags": "",
+      "min": 1
+    }
+  ]
+}

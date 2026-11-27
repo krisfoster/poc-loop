@@ -247,11 +247,89 @@ class EventGraderTests(Base):
         self.assertFalse(self.grade(spec))
 
 
+def _events(*items):
+    """A JSONL event log of main-session assistant messages; each item is ("text", str) or ("tool", name)."""
+    import json
+    lines = []
+    for kind, value in items:
+        content = [{"type": "text", "text": value}] if kind == "text" else [{"type": "tool_use", "name": value, "input": {}}]
+        lines.append(json.dumps({"type": "assistant", "message": {"content": content}}))
+    return "\n".join(lines)
+
+
+class QuestionTests(Base):
+    def test_no_question_before_the_first_write(self):
+        self.events_text = _events(("text", "Writing the files now."), ("tool", "Write"), ("text", "Done. Want a commit?"))
+        self.assertTrue(self.grade({"type": "questions_before_write", "max": 0}))
+        self.events_text = _events(("text", "What is the timebox?"), ("tool", "Write"))
+        self.assertFalse(self.grade({"type": "questions_before_write", "max": 0}))
+
+    def test_asks_at_least_one_and_writes_nothing(self):
+        self.events_text = _events(("text", "A few questions. What is the question? What is the timebox?"))
+        self.assertTrue(self.grade({"type": "questions_before_write", "min": 2}))
+        self.events_text = _events(("text", "I will make some assumptions."))
+        self.assertFalse(self.grade({"type": "questions_before_write", "min": 1}))
+
+    def test_forbidden_keywords_in_questions(self):
+        spec = {"type": "questions_before_write", "forbid_keywords": ["public", "deal"]}
+        self.events_text = _events(("text", "Is the repo public? Which assumptions are riskiest?"))
+        self.assertFalse(self.grade(spec))
+        self.events_text = _events(("text", "The repo is public, noted. Which assumptions are riskiest?"))
+        self.assertTrue(self.grade(spec))
+
+    def test_subagent_text_is_ignored(self):
+        import json
+        self.events_text = json.dumps({"type": "assistant", "parent_tool_use_id": "t1",
+                                       "message": {"content": [{"type": "text", "text": "Is this public?"}]}})
+        self.assertTrue(self.grade({"type": "questions_before_write", "max": 0}))
+
+
+class GitTests(Base):
+    def git(self, *args):
+        import subprocess
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.tmp), "GIT_CONFIG_NOSYSTEM": "1"}
+        subprocess.run(["git", "-c", "user.email=t@example.test", "-c", "user.name=t", *args], cwd=str(self.ws),
+                       env=env, check=True, capture_output=True)
+
+    def test_git_clean_history(self):
+        self.git("init", "-q", "-b", "main"); self.git("add", "-A"); self.git("commit", "-q", "-m", "fixture")
+        self.write("new.md", "x\n")
+        self.assertTrue(self.grade({"type": "git_clean_history"}))
+        self.git("add", "new.md")
+        self.assertFalse(self.grade({"type": "git_clean_history"}))
+        self.git("commit", "-q", "-m", "model commit")
+        self.assertFalse(self.grade({"type": "git_clean_history"}))
+        self.assertTrue(self.grade({"type": "git_clean_history", "commits": 2}))
+
+    def test_git_clean_history_needs_a_repo(self):
+        self.assertFalse(self.grade({"type": "git_clean_history"}))
+
+
+class GlobTests(Base):
+    def test_files_matching(self):
+        spec = {"type": "files_matching", "glob": "poc-spec/handoffs/*-webhook-retry.md", "count": 1}
+        self.assertFalse(self.grade(spec))
+        self.write("poc-spec/handoffs/2026-11-27-webhook-retry.md", "x\n")
+        self.assertTrue(self.grade(spec))
+        self.write("poc-spec/handoffs/2026-11-27-webhook-retry-2.md", "x\n")
+        self.assertTrue(self.grade(spec))
+        self.assertFalse(self.grade({"type": "files_matching", "glob": "poc-spec/handoffs/*.md", "max": 1}))
+
+    def test_glob_target_for_text_graders(self):
+        self.write("poc-spec/handoffs/2026-11-27-a.md", "a\n" * 41)
+        self.assertFalse(self.grade({"type": "line_cap", "glob": "poc-spec/handoffs/*.md", "max_lines": 40}))
+        self.write("poc-spec/handoffs/2026-11-27-a.md", "a\n" * 40)
+        self.assertTrue(self.grade({"type": "line_cap", "glob": "poc-spec/handoffs/*.md", "max_lines": 40}))
+        self.assertFalse(self.grade({"type": "line_cap", "glob": "nothing/*.md", "max_lines": 40}))
+        self.assertTrue(self.grade({"type": "file_regex", "glob": "poc-spec/handoffs/*.md", "pattern": "a"}))
+
+
 class LibraryTests(unittest.TestCase):
     def test_every_planned_grader_exists(self):
         planned = {"file_exists", "file_regex", "final_text_regex", "headings_match", "no_placeholders", "line_cap",
                    "no_em_dash", "file_unchanged", "file_prefix_unchanged", "executable", "command_exit",
-                   "tool_call_count", "no_tracked_file_modified", "canary_absent"}
+                   "tool_call_count", "no_tracked_file_modified", "canary_absent", "questions_before_write",
+                   "git_clean_history", "files_matching"}
         self.assertLessEqual(planned, set(g.GRADERS))
 
     def test_every_grader_is_tested_here(self):
@@ -259,6 +337,18 @@ class LibraryTests(unittest.TestCase):
         missing = [name for name in g.GRADERS if '"%s"' % name not in src
                    and name not in ("no_permission_denials", "tool_not_used")]  # tested in test_eval_harness.py
         self.assertEqual(missing, [])
+
+
+@unittest.skipUnless(shutil.which("git"), "git is needed")
+class CaseSelfCheckTests(unittest.TestCase):
+    """Each live case's graders pass a hand-made correct result and fail a planted defect."""
+    def test_self_checks(self):
+        import subprocess
+        root = HERE.parent
+        for script in ("poc_log_cases.py", "stage_cases.py"):
+            r = subprocess.run([sys.executable, str(root / "docs/evals/tools/selfcheck" / script)], cwd=str(root),
+                               capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stdout[-2000:] + r.stderr[-2000:])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,55 @@
+{
+  "id": "empty-argument",
+  "stage": "poc-checkpoint",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "No outcome: recommends exactly one and asks to confirm, writes no entry, and Next is the checkpoint with that outcome",
+  "prompt": "/spike-loop:poc-checkpoint",
+  "fixture": "ck-base",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)"
+  ],
+  "timeout_s": 300,
+  "max_cost_usd": 0.75,
+  "graders": [
+    {
+      "name": "log_byte_identical",
+      "type": "file_unchanged",
+      "path": "poc-spec/LOG.md"
+    },
+    {
+      "name": "nothing_written",
+      "type": "no_tracked_file_modified",
+      "allow_new": false
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    },
+    {
+      "name": "asks_to_confirm",
+      "type": "questions_before_write",
+      "min": 1
+    },
+    {
+      "name": "next_names_one_outcome",
+      "type": "final_text_regex",
+      "pattern": "^Next: [^\\n]*/spike-loop:poc-checkpoint (iterate|pivot|harden|stop|pause)\\b(?![^\\n]*\\b(iterate|pivot|harden|stop|pause)\\b)",
+      "flags": "m",
+      "count": 1
+    },
+    {
+      "name": "next_has_no_clear",
+      "type": "final_text_regex",
+      "pattern": "^Next: [^\\n]*/clear",
+      "flags": "m",
+      "count": 0
+    }
+  ]
+}

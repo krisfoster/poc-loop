@@ -2,7 +2,7 @@
 
 Evals for the Spike Loop skills and agents. Design: `docs/evals/spec.md`. Plan: `docs/evals/plan.md`. What was learned about headless runs: `docs/evals/spike-findings.md`. Plugin defects found along the way: `docs/evals/findings.md`.
 
-Status: Phase 1 (harness core), plus five `poc-log` cases for the `poc-spec/` layout. Everything else is in the plan.
+Status: Phase 1 (harness core) and Phase 2 in progress: the grader library, 11 `poc-log` cases run as a smoke set, and 23 `poc-start`, `poc-checkpoint` and `poc-verify` cases written but not yet run. Everything else is in the plan.
 
 ## Free and paid
 
@@ -52,6 +52,20 @@ Five `poc-log` cases for the `poc-spec/` layout, run 3 times each on Claude Code
 ## Phase 2 `poc-log` cases (2026-11-27)
 
 Six more `poc-log` cases, run 3 times each on Claude Code 2.1.325 (Haiku): `fresh-log` 3/3, `earlier-entries` 3/3, `started-no-time` 3/3, `timebox-exceeded` 3/3, `within-timebox` 2/3, `missing-files` 3/3. The one failure printed the time-check line in its own words (finding F2 in `docs/evals/findings.md`), a plugin defect, not a bad case. Mean estimated cost $0.0036 per run, mean 9.5 seconds, $0.066 for all 18. Before the live runs, each case's graders were checked against a hand-made correct result and one with a planted defect. Still a smoke result, not a noise measurement (plan, Gate 2).
+
+## Phase 2 stage cases (written 2026-11-27, not yet run)
+
+Seven `poc-start` cases (`all-answers`, `public-repo`, `partial-answers`, `no-arguments`, `tier-0`, `existing-poc`, `no-git-repo`), ten `poc-checkpoint` cases (the five outcomes, `stop-existing-summary`, `pause-bad-topic`, `empty-argument`, `root-layout`, `missing-files`) and six `poc-verify` cases (`pass`, `fail`, `makefile-only`, `stub`, `manual`, `many-service`). The `POC.md` line limit is 40: the template is 23 lines, a filled one measured 24 (spike-findings 0.6), so 40 leaves room for filled assumptions and scope. It is provisional until the live runs. `poc-start/all-answers` and `public-repo` run the written `verify.sh` through `command_exit`, so they need `--unsandboxed-ok`. `poc-verify/many-service` grants no `docker`, so nothing is started.
+
+Not graded yet: the 12-line limit on the checkpoint summary (it cannot be told apart from the rest of the reply), process teardown in `poc-verify`, elapsed time within a minute of truth in `poc-log`, the `poc-start` vague-answers case (no deterministic oracle), the pivot edit to `POC.md` (it needs the user's agreement, which a headless run cannot give), and a State with uncommitted work (the runner commits the whole fixture).
+
+## Checking the cases themselves
+
+`docs/evals/tools/selfcheck/` builds a correct result and a result with one planted defect for each Phase 2 case and runs the case's graders on both, with no model call. A case passes the self-check when the correct result passes and the defect fails. The unit tests run both scripts. Run this after changing a case or a grader.
+
+## Graders
+
+`file_exists`, `files_matching` (glob count), `file_regex` (a path or a glob), `final_text_regex`, `headings_match`, `no_placeholders`, `line_cap`, `no_em_dash`, `file_unchanged`, `file_prefix_unchanged`, `executable`, `no_tracked_file_modified` (optionally no new files either), `git_clean_history`, `command_exit` (runs a command in the workspace with only `PATH` and a temporary `HOME`, and makes its case need `--unsandboxed-ok`), `tool_call_count`, `tool_not_used`, `no_permission_denials`, `questions_before_write` (questions in the reply before the first file write, from the event log) and `canary_absent`. Text graders take `path`, `glob`, or `target` (`final_text`, or `changed` for every added or modified file). Parameters are checked when cases load. Code: `harness/graders.py`. Tests: `tests/test_eval_graders.py`.
 
 ## Adding a case
 

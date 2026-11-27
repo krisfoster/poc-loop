@@ -50,9 +50,14 @@ def check_spec(spec):
 
 
 def _texts(ctx, spec):
-    """[(label, text)] for the spec's target: a file ('path'), the final text, or every added or
-    modified file ('changed'). A missing file raises FileNotFoundError."""
+    """[(label, text)] for the spec's target: a file ('path'), the files matching 'glob', the final
+    text, or every added or modified file ('changed'). A missing file raises FileNotFoundError."""
     ws = Path(ctx["workspace"])
+    if "glob" in spec:
+        rels = _glob(ctx, spec["glob"])
+        if not rels:
+            raise FileNotFoundError("no file matches %s" % spec["glob"])
+        return [(r, (ws / r).read_text(encoding="utf-8", errors="replace")) for r in rels]
     if "path" in spec:
         p = ws / spec["path"]
         if not p.is_file():
@@ -65,6 +70,11 @@ def _texts(ctx, spec):
         rels = sorted(k for k in after if before.get(k) != after[k])
         return [(r, (ws / r).read_text(encoding="utf-8", errors="replace")) for r in rels]
     raise ValueError("needs 'path' or 'target'")
+
+
+def _glob(ctx, pattern):
+    """Workspace files (from the after snapshot) matching a glob, relative to the root."""
+    return sorted(k for k in (ctx.get("after") or {}) if fnmatch.fnmatch(k, pattern))
 
 
 def _count_ok(n, spec, default_min=1):
@@ -90,15 +100,25 @@ def file_exists(ctx, spec):
     return ok, "%s %s (expected %s)" % (spec["path"], "exists" if p.exists() else "missing", "present" if want else "absent")
 
 
-@grader("file_regex", required=["path", "pattern"])
+def _check_file_target(spec):
+    return [] if ("path" in spec) != ("glob" in spec) else ["give exactly one of 'path' or 'glob'"]
+
+
+@grader("file_regex", required=["pattern"], check=_check_file_target)
 def file_regex(ctx, spec):
-    p = Path(ctx["workspace"]) / spec["path"]
-    if not p.is_file():
-        return False, "%s is missing" % spec["path"]
-    text = p.read_text(encoding="utf-8", errors="replace")
-    n = len(re.findall(spec["pattern"], text, _flags(spec)))
+    """Matches of pattern in a file, or summed over the files matching 'glob'."""
+    texts = _texts(ctx, spec)
+    n = sum(len(re.findall(spec["pattern"], text, _flags(spec))) for _, text in texts)
     ok, want = _count_ok(n, spec)
-    return ok, "%d matches in %s (expected %s)" % (n, spec["path"], want)
+    where = spec.get("path") or "%s (%d files)" % (spec["glob"], len(texts))
+    return ok, "%d matches in %s (expected %s)" % (n, where, want)
+
+
+@grader("files_matching", required=["glob"])
+def files_matching(ctx, spec):
+    rels = _glob(ctx, spec["glob"])
+    ok, want = _count_ok(len(rels), spec)
+    return ok, "%d files match %s (expected %s): %s" % (len(rels), spec["glob"], want, ", ".join(rels[:5]) or "none")
 
 
 @grader("final_text_regex", required=["pattern"])
@@ -307,6 +327,62 @@ def canary_absent(ctx, spec):
         if v.encode("utf-8") in (ws / rel).read_bytes():
             where.append(rel)
     return not where, "canary found in %s" % ", ".join(where) if where else "canary absent"
+
+
+QUESTION_RE = re.compile(r"[^.?!\n]*\?")
+WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
+
+
+@grader("questions_before_write")
+def questions_before_write(ctx, spec):
+    """Questions (sentences ending in '?') in main-session assistant text before the first file
+    write, read from the event log. Headless runs have no AskUserQuestion, so questions are text
+    (docs/evals/spike-findings.md, 0.6). min and max bound the count; a question containing any of
+    forbid_keywords (case-insensitive) fails, because the arguments already answered it."""
+    import json
+    questions = []
+    for line in (ctx.get("events_text") or "").splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(e, dict) or e.get("type") != "assistant" or e.get("parent_tool_use_id"):
+            continue
+        content = (e.get("message") or {}).get("content") or []
+        stop = False
+        for item in content if isinstance(content, list) else []:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "tool_use" and item.get("name") in WRITE_TOOLS:
+                stop = True
+                break
+            if item.get("type") == "text":
+                questions += [q.strip() for q in QUESTION_RE.findall(item.get("text") or "")]
+        if stop:
+            break
+    bad = [q for q in questions if any(k.lower() in q.lower() for k in spec.get("forbid_keywords", []))]
+    ok, want = _count_ok(len(questions), spec, default_min=0)
+    why = "%d questions before the first write (expected %s)" % (len(questions), want)
+    if bad:
+        why += "; re-asked: %s" % " | ".join(bad[:3])
+    return ok and not bad, why
+
+
+@grader("git_clean_history")
+def git_clean_history(ctx, spec):
+    """Nothing staged, and HEAD has exactly 'commits' commits (default 1, the fixture commit)."""
+    env = {"PATH": os.environ.get("PATH", ""), "HOME": str(ctx["workspace"]), "GIT_CONFIG_NOSYSTEM": "1",
+           "GIT_CONFIG_GLOBAL": os.devnull}
+    def git(*args):
+        return subprocess.run(["git", "--no-optional-locks", *args], cwd=str(ctx["workspace"]), env=env,
+                              capture_output=True, text=True)
+    r = git("rev-list", "--count", "HEAD")
+    if r.returncode != 0:
+        return False, "not a git repository with commits: %s" % r.stderr.strip()[:120]
+    n, want = int(r.stdout.strip()), spec.get("commits", 1)
+    staged = git("diff", "--cached", "--name-only").stdout.split()
+    ok = n == want and not staged
+    return ok, "%d commits (expected %d), staged: %s" % (n, want, ", ".join(staged[:5]) or "none")
 
 
 def run_graders(specs, ctx):

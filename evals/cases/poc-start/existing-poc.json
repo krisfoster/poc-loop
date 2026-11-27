@@ -1,0 +1,45 @@
+{
+  "id": "existing-poc",
+  "stage": "poc-start",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "poc-spec/POC.md already exists: stops, overwrites nothing and writes nothing",
+  "prompt": "/spike-loop:poc-start Webhook HMAC check. Tier 1. Repo visibility: private. Deal: none. Question: can a small receiver verify an HMAC-SHA256 webhook signature computed over the raw request body? Assumptions: 1. the signature is over the raw body, which could be wrong if the provider signs the parsed JSON; 2. the header holds a hex digest, which could be base64 instead. Success check: manual, send the provider's test event and see 'signature ok' in the receiver log. In scope: the HMAC check. Out of scope: persistence and retries. Timebox: 2 hours.",
+  "fixture": "start-existing",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)",
+    "Bash(chmod *)",
+    "Bash(test *)"
+  ],
+  "timeout_s": 420,
+  "max_cost_usd": 1.0,
+  "graders": [
+    {
+      "name": "poc_md_byte_identical",
+      "type": "file_unchanged",
+      "path": "poc-spec/POC.md"
+    },
+    {
+      "name": "nothing_written",
+      "type": "no_tracked_file_modified",
+      "allow_new": false
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    },
+    {
+      "name": "says_it_exists",
+      "type": "final_text_regex",
+      "pattern": "(?i)already exist|exists",
+      "flags": "",
+      "min": 1
+    }
+  ]
+}

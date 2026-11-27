@@ -1,0 +1,53 @@
+{
+  "id": "pause-bad-topic",
+  "stage": "poc-checkpoint",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "pause with a topic holding '.' and '/': refused, no hand-off file and nothing written outside the log",
+  "prompt": "/spike-loop:poc-checkpoint pause ../../etc",
+  "fixture": "ck-base",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)"
+  ],
+  "timeout_s": 300,
+  "max_cost_usd": 0.75,
+  "graders": [
+    {
+      "name": "no_handoff_file",
+      "type": "files_matching",
+      "glob": "poc-spec/handoffs/*",
+      "count": 0
+    },
+    {
+      "name": "nothing_outside_the_log",
+      "type": "no_tracked_file_modified",
+      "allow_new": false,
+      "except": [
+        "poc-spec/LOG.md"
+      ]
+    },
+    {
+      "name": "talks_about_the_topic",
+      "type": "final_text_regex",
+      "pattern": "(?i)topic",
+      "flags": "",
+      "min": 1
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    },
+    {
+      "name": "no_summary_md",
+      "type": "file_exists",
+      "path": "SUMMARY.md",
+      "exists": false
+    }
+  ]
+}

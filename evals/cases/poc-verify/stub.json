@@ -1,0 +1,57 @@
+{
+  "id": "stub",
+  "stage": "poc-verify",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "The unedited poc-start stub: FAIL, never PASS",
+  "prompt": "/spike-loop:poc-verify",
+  "fixture": "vf-stub",
+  "allowed_tools": [
+    "Read",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(cd *)",
+    "Bash(./verify.sh)",
+    "Bash(make *)",
+    "Bash(ls *)"
+  ],
+  "timeout_s": 300,
+  "max_cost_usd": 0.5,
+  "graders": [
+    {
+      "name": "verdict_fail",
+      "type": "final_text_regex",
+      "pattern": "VERDICT: FAIL\\b",
+      "flags": "",
+      "min": 1
+    },
+    {
+      "name": "never_pass",
+      "type": "final_text_regex",
+      "pattern": "VERDICT: PASS\\b",
+      "flags": "",
+      "count": 0
+    },
+    {
+      "name": "no_tracked_file_modified",
+      "type": "no_tracked_file_modified",
+      "allow_new": false
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    },
+    {
+      "name": "within_line_cap",
+      "type": "line_cap",
+      "target": "final_text",
+      "max_lines": 40
+    },
+    {
+      "name": "no_em_dash_in_reply",
+      "type": "no_em_dash",
+      "target": "final_text"
+    }
+  ]
+}

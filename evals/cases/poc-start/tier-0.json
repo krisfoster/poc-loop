@@ -1,0 +1,40 @@
+{
+  "id": "tier-0",
+  "stage": "poc-start",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "A one-line change needs no PoC: offers to just do it, writes nothing, and ends with the tier 0 Next line",
+  "prompt": "/spike-loop:poc-start Rename the variable foo to bar in app.py",
+  "fixture": "start-app",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)",
+    "Bash(chmod *)",
+    "Bash(test *)"
+  ],
+  "timeout_s": 420,
+  "max_cost_usd": 1.0,
+  "graders": [
+    {
+      "name": "tier_0_next_line",
+      "type": "final_text_regex",
+      "pattern": "^Next: no PoC files are needed, just ask for the change",
+      "flags": "m",
+      "min": 1
+    },
+    {
+      "name": "nothing_written",
+      "type": "no_tracked_file_modified",
+      "allow_new": false
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    }
+  ]
+}

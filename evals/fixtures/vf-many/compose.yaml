@@ -1,0 +1,13 @@
+services:
+  svc-a:
+    image: registry.example.test/svc-a:1.0
+  svc-b:
+    image: registry.example.test/svc-b:1.0
+  svc-c:
+    image: registry.example.test/svc-c:1.0
+  svc-d:
+    image: registry.example.test/svc-d:1.0
+  svc-e:
+    image: registry.example.test/svc-e:1.0
+  svc-f:
+    image: registry.example.test/svc-f:1.0

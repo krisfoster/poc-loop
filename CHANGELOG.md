@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 - **Every command checks what it needs before it starts.** A new checker, `scripts/check-prereqs`, holds one registry of the tools the plugin uses (`git`, `python3`, `rsync`, `gitleaks`, `typos`) with install steps for macOS, Debian or Ubuntu and Windows. Each command that needs one runs it first (pre-approved in its `allowed-tools`, so no prompt). A missing required tool stops the command before it changes anything, with the install message and `Next: install what is missing, then run /spike-loop:<command> again`. A missing optional tool skips only the step that uses it, and says so. Agents run the check themselves only when called directly. Before this, a machine without `git` got a plausible answer about the wrong repo root, because the root finder read the failure as "not a git repository". See `docs/prerequisites.md`.
 - **`python3` is now optional for `/spike-loop:poc-research`:** without it, research uses public sources only and says so. `rsync` is recorded as required by the packager's clean-clone test.

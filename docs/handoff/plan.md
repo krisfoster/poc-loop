@@ -1,6 +1,6 @@
 # Plan: implement hand-off state
 
-Spec: `docs/handoff/spec.md` (draft 2, read it first). Branch: `handoff-state-spec`, off `main` at `0317448`. Status: Phase R not started. Nothing is implemented.
+Spec: `docs/handoff/spec.md` (draft 2, read it first). Branch: `handoff-state-spec`, off `main` at `0317448`. Status: Phase R re-run after a failed first attempt (network error), on the spec and plan with the wiring change removed. Nothing is implemented.
 
 ## Ground rules
 
@@ -9,7 +9,7 @@ Spec: `docs/handoff/spec.md` (draft 2, read it first). Branch: `handoff-state-sp
 - Before any push, PR, merge or tag: the pre-push review of outgoing changes that `CLAUDE.md` requires, and the maintainer's explicit yes for each step.
 - A claim about Claude Code behaviour in a skill or doc must be true. Claims marked **(docs)** in the spec are untested until a probe runs them. Everything measured so far is headless on Claude Code 2.1.325.
 - Paid runs: single runs per case, as for the layout checks and F1. Anthropic's terms on scripted use of a subscription are still unread and the organisation's policy unchecked, so nothing larger than a smoke set runs. Budget for this plan: about 15 single runs, a few dollars. Each run has a `--max-budget-usd` cap.
-- The `CLAUDE.md` wiring text is carried word for word in three places (`skills/poc-start/SKILL.md` step 6, the blockquote in `docs/layout/spec.md`, the `WIRING` literal in `tests/test_docs_layout.py`). Change all three together with one script, and never one by hand.
+- The `CLAUDE.md` wiring text is not changed by this plan. It is carried word for word in three places (`skills/poc-start/SKILL.md` step 6, the blockquote in `docs/layout/spec.md`, the `WIRING` literal in `tests/test_docs_layout.py`) and the existing layout tests must keep passing untouched. Hand-offs are found through the `resume:` field of the closing log entry instead.
 
 ## Order and dependencies
 
@@ -38,7 +38,7 @@ Scratch PoC repos built by a script kept under `docs/handoff/tools/`, no model n
 | ID | Probe | Answers |
 |---|---|---|
 | P1 | Repo with the 0.2.1 wiring text, a `POC.md`, a `LOG.md` whose last entry carries a `State:` line. Prompt: "Where are we and what should I do next?" | Does a plain first prompt make the session read `POC.md` and the log tail from the wiring alone, and use the State line |
-| P2 | Same repo with a wiring sentence added for `handoffs/`, and a hand-off file. Same prompt | Does the added sentence get the hand-off read |
+| P2 | Same repo, the 0.2.1 wiring text unchanged, a hand-off file, and a last `State:` line whose `resume:` names it. Same prompt | Does the session follow the `resume:` pointer to the hand-off from the log tail alone |
 | P3 | Same as P1 with a commit made after the State line | Does the model notice the repo moved when told to compare, and when not told |
 | P4 | `claude -p` with a trivial `SessionStart` hook in a throwaway plugin that prints a marker | Whether SessionStart runs headless and whether the marker reaches the model (answers a spec **(docs)** gap; informs option C only) |
 
@@ -55,7 +55,7 @@ Gate 0: P1 and P2 results recorded in `docs/handoff/findings.md`. If the model i
 | 1.5 | `poc-help` reads the newest `State:` and newest hand-off, names the sha and branch comparison, and the fallback `Next:` | same |
 | 1.6 | The stored State line holds a branch name and no path: the template and step text contain no path placeholder | same |
 | 1.7 | `pause` is accepted by `poc-help`, `poc-log` and the docs where the other outcomes are listed (every place that lists iterate, pivot, harden, stop) | `tests/test_skills_contract.py` |
-| 1.8 | The wiring text is the new text in all three carriers and mentions `handoffs/` | `tests/test_docs_layout.py` (the `WIRING` literal), `docs/layout/spec.md`, `skills/poc-start/SKILL.md` |
+| 1.8 | `poc-checkpoint` says `resume:` names the hand-off file when `pause <topic>` wrote one. The wiring text is untouched: the existing layout tests that compare it pass without edits | `tests/test_handoff_state.py` |
 | 1.9 | Mutation check: a script like `docs/layout/tools/mutate.py` with one row per rule above (remove the read-back, make iterate conditional again, drop the sha comparison, add a path to the State line, and so on). Every mutation must fail at least one test | `docs/handoff/tools/mutate.py` |
 
 Run the suite: the new tests fail for the expected reasons, the existing 87 still pass.
@@ -64,14 +64,14 @@ Run the suite: the new tests fail for the expected reasons, the existing 87 stil
 
 | ID | Change |
 |---|---|
-| 2.1 | `skills/poc-start/SKILL.md`: add `- State:` to the LOG template as an optional line, update the wiring text (task 1.8's script) |
+| 2.1 | `skills/poc-start/SKILL.md`: add `- State:` to the LOG template as an optional line. Do not touch the wiring text |
 | 2.2 | `skills/poc-checkpoint/SKILL.md`: `pause [topic]`, mandatory closing entry for every outcome, State gathering with the three read-only git calls and the worktree check, read-back before any `/clear` line, hand-off file rules, failure path. Keep the paths and docs-folder rules word for word |
 | 2.3 | `skills/poc-log/SKILL.md`: accept `pause` as a Decision, point iterate, pivot and pause at `poc-checkpoint`, no State line |
 | 2.4 | `skills/poc-help/SKILL.md`: `pause` row text, newest `State:` and hand-off read, `Resume:` line, staleness comparison, fallback |
 | 2.5 | `docs/workflow.md`: name the four boundaries and what each leaves, the `pause` outcome, the manual `/clear` rule |
 | 2.6 | `README.md`: the checkpoint row mentions `pause`. `CHANGELOG.md` 0.3.0 entry that says what was and was not tested. `plugin.json` 0.3.0 |
 | 2.7 | `docs/layout/spec.md`: its "reserved, written by the hand-off spec" line now points at `docs/handoff/spec.md` |
-| 2.8 | Check whether `agents/packager.md` reads the `CLAUDE.md` wiring section. If it does, update it, if not say so in the changelog |
+| 2.8 | Check `tests/test_docs_layout.py` and the 87-test suite pass with the wiring text and the Rule A and B copies unchanged, and say so in the changelog |
 
 ## Phase 3: verification
 
@@ -95,5 +95,6 @@ PR, `reviewer` re-run on the final diff if anything changed after Phase 3, then 
 
 - P1 may show the model ignores the wiring after a clear. Then option A alone is not enough and the maintainer decides on C before Phase 1.
 - The `SessionStart` probe (P4) may not run headless. Then C stays untested and stays out.
-- The existing layout tests compare the wiring text verbatim, so a half-applied wiring change fails many tests at once. The one-script rule above is the guard.
+- The model may not follow a `resume:` pointer from the log tail. P2 measures it. A later `poc-log` entry can sit after the closing entry, which the manual runs in 3.3 include.
+- A separate, optional change worth its own branch: commit the Rule A, Rule B and wiring sync script with a `--check` mode, so a future text change is one command. Not part of this plan.
 - Single runs hide variance. Findings say "one run each", as the layout findings do.

@@ -1,6 +1,6 @@
 # Spec: hand-off state, so a fresh session can pick a PoC up
 
-Status: draft 2. Branch: `handoff-state-spec`, off `main` at `0317448` (v0.2.1). Nothing here is implemented. The five maintainer decisions are recorded in "Decisions" (all taken as recommended, 2026-11-26). The plan is `docs/handoff/plan.md`.
+Status: draft 3 (the `CLAUDE.md` wiring text is no longer changed, see "Finding the hand-off from a fresh session"). Branch: `handoff-state-spec`, off `main` at `0317448` (v0.2.1). Nothing here is implemented. The five maintainer decisions are recorded in "Decisions" (all taken as recommended, 2026-11-26). The plan is `docs/handoff/plan.md`.
 
 How to read the evidence. Statements about the plugin come from reading `skills/poc-checkpoint`, `skills/poc-log`, `skills/poc-help`, `skills/poc-start`, `docs/workflow.md` and `docs/layout/spec.md` on `main` at `0317448`. Statements about Claude Code come from its docs and are marked **(docs)**: they are untested until the plan's probe phase runs them, and the docs were read through a summarising fetch, so check the wording before quoting them outside this repo.
 
@@ -36,6 +36,7 @@ A skill cannot clear context. The docs describe `/clear` only as a user command 
 - Clearing context from a skill or a hook. Not documented as possible.
 - A `SessionStart` hook in this change. It is option C below, kept as a fallback if the cold-start check shows the `CLAUDE.md` wiring is not enough. The docs confirm the mechanism exists (read 2026-11-26) and are silent on the points that decide whether it is worth the trust cost.
 - Changing what `POC.md` or `SUMMARY.md` contain.
+- Changing the `CLAUDE.md` wiring text that `poc-start` appends. It is carried word for word in three places and checked verbatim by the layout tests, and this design does not need a new sentence in it.
 - Hand-offs for this plugin's own development (the maintainer's `~/claude_work` notes). This spec governs the PoC repos the plugin creates.
 - Recording running processes automatically. A skill cannot list them reliably, so it records only what the user says.
 - Writing to any external system.
@@ -64,14 +65,18 @@ A new optional line in the `LOG.md` entry format, written only by the boundary c
 - **Older logs.** An entry without `State:` is valid. Every reader treats a missing State as "unknown", not "clean".
 - **Format.** One line, so the existing "last 40 lines of `LOG.md`" read always includes it.
 
+## Finding the hand-off from a fresh session
+
+The wiring text in a PoC's `CLAUDE.md` already says to read the last 40 lines of `poc-spec/LOG.md` at session start, and already ends "Hand-offs, specs and plans for this PoC go under `poc-spec/`". The closing entry is the last entry, so a fresh session reads its State line. When `pause <topic>` wrote a hand-off file, the `resume:` field names it, for example `resume: read poc-spec/handoffs/2026-11-27-topic.md, then run <command>`. So the wiring text does not change, and a PoC wired by any earlier version works the same way, with no migration and no second route for older PoCs. If a later `poc-log` entry sits after the closing one, `poc-help` still finds the newest `State:` line, and the wiring's 40-line read normally still reaches it because entries are short.
+
 ## Commands
 
 - **`poc-checkpoint`.** Every outcome (iterate, pivot, harden, stop, and the new `pause`) ends with a closing `LOG.md` entry, even when a `poc-log` entry was just written: the closing entry is the one with State and Decision. For `iterate` and `pivot` the entry is mandatory, today it is conditional. It reads the tail of `LOG.md` back after appending and only then prints a `Next:` that contains `/clear`. If the write or the read-back fails it says so and does not suggest `/clear`.
 - **`pause` (new outcome).** Means "stop here, resume later, no loop decision". It writes Decision `pause`, so `poc-help` and `poc-log` need a rule for it. It exists because spec and plan work ends without a PoC decision.
 - **`pause <topic>`.** Also writes `poc-spec/handoffs/<YYYY-MM-DD>-<topic>.md` (topic restricted to letters, digits and hyphens): what was done, the State line, decisions waiting, gotchas learned, files to read first, the next step. At most 40 lines. Never overwritten: a second pause on the same topic and day appends a section. The folder is created only now, never empty (`docs/layout/spec.md`).
 - **`poc-log`.** Unchanged except that a Decision of `iterate`, `pivot` or `pause` asks to run `poc-checkpoint` for the State, so the two commands do not write two partial records.
-- **`poc-help`.** Reads the newest `State:` line and the newest file in `poc-spec/handoffs/` (if any). Prints a `Resume:` line. Compares the recorded short sha and branch with the repo now: when they differ it prints `State is from <time>; the repo has moved: <what differs>` and does not use the recorded "resume" command, falling back to the Decision-based `Next:` it prints today.
-- **`poc-start`.** The `CLAUDE.md` section gains one sentence: "If `poc-spec/handoffs/` exists, read the newest file there too." Existing PoCs keep their old text, so `poc-help` is their only route to a hand-off. The same sentence is added to the packager's expectations only if the packager reads that section (to be checked in the plan).
+- **`poc-help`.** Reads the newest `State:` line and, if its `resume:` names a hand-off file, that file (otherwise the newest file in `poc-spec/handoffs/`, if any). Prints a `Resume:` line. Compares the recorded short sha and branch with the repo now: when they differ it prints `State is from <time>; the repo has moved: <what differs>` and does not use the recorded "resume" command, falling back to the Decision-based `Next:` it prints today.
+- **`poc-start`.** Only the `LOG.md` template changes: it shows the optional `State:` line. The wiring text is untouched.
 
 ## Making a manual `/clear` safe: options
 
@@ -92,7 +97,7 @@ Free, in `tests/test_skills_contract.py` and a new `tests/test_handoff_state.py`
 - Every `Next:` rule that contains `/clear` sits in a command whose steps append and read back an entry first.
 - `poc-checkpoint` lists `pause` in its argument hint and every outcome writes a closing entry, with iterate and pivot unconditional.
 - `poc-help` names the staleness comparison and the fallback.
-- The `CLAUDE.md` wiring text in `poc-start` and `docs/workflow.md` match, and `poc-start`'s copy mentions `handoffs/`.
+- The `CLAUDE.md` wiring text is unchanged (the existing layout tests that compare it to `docs/layout/spec.md` still pass), and the `poc-checkpoint` step says `resume:` names the hand-off file when one was written.
 - A mutation check as for the layout tests (break the rule, the test must fail), and a reviewer pass that tries to break the tests, as in the F1 review.
 
 Manual and cold-start (paid, single runs, headless): checkpoint on a scratch PoC with an unmerged `poc-build` worktree and uncommitted files, then `poc-help` in a fresh session. Cases: fresh state, stale state (a commit made after the checkpoint), old log without State, `pause <topic>` then a fresh session reading the hand-off, a failed write.
@@ -102,6 +107,7 @@ Manual and cold-start (paid, single runs, headless): checkpoint on a scratch PoC
 - **A longer closing ritual.** Every iterate or pivot now takes a checkpoint. Mitigation: the State block is one line, gathered with three read-only git calls.
 - **Model-written State is wrong.** Git facts are read, not recalled. "Waiting on you" is the only judgement, and a stale or empty value is flagged by the comparison, not trusted.
 - **`pause` is a new loop word.** `poc-log` and `poc-help` must accept it, or older copies of the docs mislead. Covered by the tests above.
+- **A later `poc-log` entry can sit after the closing entry.** The wiring's 40-line read still normally reaches the State line, and `poc-help` reads the newest `State:` wherever it is. An older log with many long entries after the closing one is the case to test.
 - **Branch names can be descriptive.** `worktree-agent-<id>` is neutral, a user's own branch name may not be. `LOG.md` already can hold such text and `poc-spec/` is covered by the packager warning.
 - **Interactive behaviour is unmeasured.** Everything measured so far is headless on Claude Code 2.1.325. Whether the model reads `CLAUDE.md` the same way after `/clear` interactively is the thing option D cannot show.
 

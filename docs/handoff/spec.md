@@ -87,7 +87,12 @@ All read-only, all from the repo root, and every git call as `git --no-optional-
 - **Inside a work tree?** `rev-parse --is-inside-work-tree`. If it fails or does not print `true` (not a repository, or a bare one), the four git fields are `not a git repo` and nothing else is run.
 - **branch.** `branch --show-current`. It prints nothing on a detached HEAD (the value is `detached`) and works in a repository with no commits, where `rev-parse --abbrev-ref HEAD` fails.
 - **at.** `rev-parse --short HEAD`. It fails with no commits, and the value is `no commits`.
-- **The exclusions.** One list, used by every comparison here: in the `poc-spec` layout `poc-spec`, `.claude` and `SUMMARY.md`; in the older root layout `POC.md`, `LOG.md`, `SUMMARY.md` and `.claude`, by name. Never `.`: as a pathspec, `:(exclude).` excludes the whole repository, so an older-layout PoC would always read clean. `SUMMARY.md` is excluded because step 6 writes it after the State is gathered. The pathspec is `-- . ":(exclude)<each>"`.
+- **The exclusions.** One list per layout, used by every comparison here, written in the skills as these two lines:
+
+  Exclusions, `poc-spec` layout: `poc-spec` `.claude` `SUMMARY.md`
+  Exclusions, root layout: `POC.md` `LOG.md` `SUMMARY.md` `.claude`
+
+  Never `.`: as a pathspec, `:(exclude).` excludes the whole repository, so an older-layout PoC would always read clean. `SUMMARY.md` is excluded because step 6 writes it after the State is gathered. The pathspec is `-- . ":(exclude)<each>"`.
 - **uncommitted.** `status --porcelain -- . <exclusions>`. The path is each line after its first three characters, and the new name for a rename (`old -> new`). Paths are listed in git's order.
 - **unmerged worktrees.** `worktree list --porcelain`. The first entry is always the main checkout, also when the session's root is itself a linked worktree. Consider only entries whose path is under `<main checkout>/.claude/worktrees/`, and not the root's own worktree. For each: its name is the `branch` line without `refs/heads/`, or `detached <short sha>` when the entry says `detached`, the sha from `git --no-optional-locks -C "<worktree path>" rev-parse --short HEAD`. It has commits when `log --oneline <branch or sha> --not HEAD` prints anything (skipped when `at` is `no commits`, where it fails). It has uncommitted changes when `git --no-optional-locks -C "<worktree path>" status --porcelain` prints anything. It is listed when either holds. The worktree path is used to run the check and printed to the user, never written.
 - **waiting on you.** From the conversation, `none` when nothing was said. A process the user says is running is recorded here.

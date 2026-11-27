@@ -1,0 +1,111 @@
+{
+  "id": "pause-topic",
+  "stage": "poc-checkpoint",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "pause with a topic: one hand-off file named by date and topic, at most 40 lines, holding the State, and resume names that file",
+  "prompt": "/spike-loop:poc-checkpoint pause webhook retry",
+  "fixture": "ck-base",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)"
+  ],
+  "timeout_s": 300,
+  "max_cost_usd": 0.75,
+  "graders": [
+    {
+      "name": "one_closing_entry",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} ",
+      "flags": "m",
+      "count": 3
+    },
+    {
+      "name": "decision_names_outcome",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "^- Decision: pause\\b",
+      "flags": "m",
+      "count": 1
+    },
+    {
+      "name": "state_line_is_the_last_line",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "\\n- State: branch: main; at: [0-9a-f]{7,40}; uncommitted: none; unmerged worktrees: none; waiting on you: [^;\\n]+; resume: `?read poc-spec/handoffs/\\d{4}-\\d{2}-\\d{2}-webhook-retry\\.md`?, then (?![^;\\n]*(/clear|poc-help))[^;\\n]+\\n*\\Z",
+      "flags": "",
+      "count": 1
+    },
+    {
+      "name": "earlier_entries_byte_identical",
+      "type": "file_prefix_unchanged",
+      "path": "poc-spec/LOG.md"
+    },
+    {
+      "name": "only_expected_files_changed",
+      "type": "no_tracked_file_modified",
+      "except": [
+        "poc-spec/LOG.md",
+        "poc-spec/handoffs/*"
+      ]
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    },
+    {
+      "name": "no_em_dash_in_written_files",
+      "type": "no_em_dash",
+      "target": "changed"
+    },
+    {
+      "name": "no_em_dash_in_reply",
+      "type": "no_em_dash",
+      "target": "final_text"
+    },
+    {
+      "name": "one_handoff_file",
+      "type": "files_matching",
+      "glob": "poc-spec/handoffs/*",
+      "count": 1
+    },
+    {
+      "name": "handoff_named_by_date_and_topic",
+      "type": "files_matching",
+      "glob": "poc-spec/handoffs/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-webhook-retry.md",
+      "count": 1
+    },
+    {
+      "name": "handoff_within_40_lines",
+      "type": "line_cap",
+      "glob": "poc-spec/handoffs/*",
+      "max_lines": 40
+    },
+    {
+      "name": "handoff_holds_the_state",
+      "type": "file_regex",
+      "glob": "poc-spec/handoffs/*",
+      "pattern": "State: branch: main; at: ",
+      "min": 1
+    },
+    {
+      "name": "no_summary_md",
+      "type": "file_exists",
+      "path": "SUMMARY.md",
+      "exists": false
+    },
+    {
+      "name": "next_is_clear_then_help",
+      "type": "final_text_regex",
+      "pattern": "^Next: .*/clear.*/spike-loop:poc-help",
+      "flags": "m",
+      "min": 1
+    }
+  ]
+}

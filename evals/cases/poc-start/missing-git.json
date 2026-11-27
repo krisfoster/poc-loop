@@ -1,0 +1,63 @@
+{
+  "id": "missing-git",
+  "stage": "poc-start",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "git hidden: poc-start stops with the registry message and the install Next line before asking or writing anything, and runs no git",
+  "prompt": "/spike-loop:poc-start Webhook HMAC check. Tier 1. Repo visibility: private. Deal: none. Question: can a small receiver verify an HMAC-SHA256 webhook signature computed over the raw request body? Assumptions: 1. the signature is over the raw body, which could be wrong if the provider signs the parsed JSON; 2. the header holds a hex digest, which could be base64 instead. Success check: manual, send the provider's test event and see 'signature ok' in the receiver log. In scope: the HMAC check. Out of scope: persistence and retries. Timebox: 2 hours.",
+  "fixture": "start-empty",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)",
+    "Bash(chmod *)",
+    "Bash(test *)"
+  ],
+  "timeout_s": 300,
+  "max_cost_usd": 1.0,
+  "hide_tools": [
+    "git"
+  ],
+  "graders": [
+    {
+      "name": "missing_message",
+      "type": "final_text_regex",
+      "pattern": "MISSING: git is needed by /spike-loop:poc-start",
+      "min": 1
+    },
+    {
+      "name": "install_next_line",
+      "type": "final_text_regex",
+      "pattern": "^Next: install what is missing, then run /spike-loop:poc-start again",
+      "flags": "m",
+      "min": 1
+    },
+    {
+      "name": "ran_the_prereq_check",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "check-prereqs",
+      "min": 1
+    },
+    {
+      "name": "no_git_by_path_or_init",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "/git[\\s\"]|git init",
+      "count": 0
+    },
+    {
+      "name": "nothing_written",
+      "type": "no_tracked_file_modified",
+      "allow_new": false
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    }
+  ]
+}

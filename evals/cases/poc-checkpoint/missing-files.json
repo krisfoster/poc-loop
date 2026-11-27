@@ -1,0 +1,38 @@
+{
+  "id": "missing-files",
+  "stage": "poc-checkpoint",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "No PoC documents: stops, writes nothing, Next is poc-start",
+  "prompt": "/spike-loop:poc-checkpoint iterate",
+  "fixture": "poc-log-empty",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)"
+  ],
+  "timeout_s": 300,
+  "max_cost_usd": 0.75,
+  "graders": [
+    {
+      "name": "next_is_poc_start",
+      "type": "final_text_regex",
+      "pattern": "^Next: .*?/spike-loop:poc-start",
+      "flags": "m",
+      "min": 1
+    },
+    {
+      "name": "nothing_written",
+      "type": "no_tracked_file_modified",
+      "allow_new": false
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    }
+  ]
+}

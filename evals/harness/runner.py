@@ -22,10 +22,11 @@ from typing import Dict, List, Optional
 
 from . import events as ev
 from . import graders as graders_mod
+from . import hidepath
 from .cases import Case
 
 TOKEN_VAR = "SPIKE_EVALS_OAUTH_TOKEN"
-PLUGIN_DIRS = (".claude-plugin", "agents", "skills", "commands", "hooks", "assets")
+PLUGIN_DIRS = (".claude-plugin", "agents", "skills", "commands", "hooks", "assets", "scripts")
 SNAPSHOT_SKIP = (".git", ".claude")  # runs create .claude (project config, worktrees); not part of the diff
 BROAD_TOOLS = ("Bash", "WebFetch", "WebSearch")
 # A Bash pattern that starts with one of these runs arbitrary code, whatever follows it.
@@ -76,10 +77,13 @@ def broad_grants(case):
         elif base == "Bash":
             inner = t[len("Bash("):].rstrip(")").strip()
             word = inner.split()[0] if inner.split() else ""
-            if word.startswith("*") or word in INTERPRETERS:
+            # An interpreter grant is broad unless it names one exact command (no wildcard anywhere).
+            if word.startswith("*") or (word in INTERPRETERS and "*" in inner):
                 out.append(t)
         elif t.startswith(base + "(*"):
             out.append(t)
+    # A command_exit grader runs files in the workspace, which the model may have written.
+    out += ["command_exit grader: %s" % " ".join(gs["argv"]) for gs in case.graders if gs.get("type") == "command_exit"]
     return out
 
 
@@ -212,19 +216,33 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
         if parents:
             raise RunnerError("instruction files above the workspace would be loaded: %s" % ", ".join(parents))
         make_workspace(Path(fixtures_dir) / case.fixture, ws, case.git, home)
+        # Each run gets its own copy of the plugin: the copy is an additional directory the session may
+        # write to, and a change must neither reach later runs nor go unnoticed.
+        run_plugin = tmp / "plugin"
+        shutil.copytree(str(plugin_dir), str(run_plugin))
+        plugin_before = snapshot(run_plugin)
         run_cwd = ws / case.cwd  # the session starts here, the diff and the graders still look at the whole workspace
         settings = copy.deepcopy(SETTINGS)
+        # The plugin copy holds only plugin files (no .env), and its bundled scripts must be runnable even
+        # though reads outside the working directory are blocked.
+        settings["permissions"]["additionalDirectories"] = [str(run_plugin)]
         if case.add_root_dir:
-            settings["permissions"]["additionalDirectories"] = [str(ws)]
+            settings["permissions"]["additionalDirectories"].append(str(ws))
         before = snapshot(ws)
         cmd = list(claude_cmd) + [
-            "-p", case.prompt, "--plugin-dir", str(plugin_dir),
+            "-p", case.prompt, "--plugin-dir", str(run_plugin),
             "--settings", json.dumps(settings),
             "--allowedTools"] + list(case.allowed_tools) + [
             "--output-format", "stream-json", "--verbose", "--max-budget-usd", str(case.max_cost_usd)]
+        env = isolated_env(home, token)
+        if case.hide_tools:
+            # Resolve the CLI on the real PATH first, then give the session a PATH without the hidden tools.
+            cmd[0] = shutil.which(cmd[0]) or cmd[0]
+            env["PATH"] = hidepath.hidden_path(str(home / "bin"), case.hide_tools)
+            result["hidden_tools"] = list(case.hide_tools)
         stdout, stderr, code, timed_out = "", "", None, False
         try:
-            proc = subprocess.run(cmd, cwd=str(run_cwd), env=isolated_env(home, token), capture_output=True,
+            proc = subprocess.run(cmd, cwd=str(run_cwd), env=env, capture_output=True,
                                   text=True, timeout=case.timeout_s)
             stdout, stderr, code = proc.stdout, proc.stderr, proc.returncode
         except subprocess.TimeoutExpired as exc:
@@ -249,6 +267,10 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
             result.update(status="harness_failure", reason="no init or result event (exit %s)" % code)
         else:
             violations = ev.check_isolation(init, config_dir=str(home / "cc"), cwd=str(run_cwd))
+            changed = diff_snapshots(plugin_before, snapshot(run_plugin))
+            touched = changed["added"] + changed["modified"] + changed["deleted"]
+            if touched:
+                violations.append("the run changed its plugin copy: %s" % ", ".join(touched[:5]))
             if violations:
                 result.update(status="invalid", reason="; ".join(violations))
             elif summary["result_subtype"] == "error_max_budget_usd" or summary["terminal_reason"] == "budget_exhausted":
@@ -257,7 +279,8 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
                 result.update(status="harness_failure", reason="result error: %s" % summary["result_subtype"])
 
         if result["status"] == "ok":
-            ctx = {"workspace": ws, "summary": summary, "before": before, "after": after}
+            ctx = {"workspace": ws, "fixture": Path(fixtures_dir) / case.fixture, "summary": summary,
+                   "before": before, "after": after, "events_text": ev.redact(stdout, (token,))}
             result["grader_results"] = graders_mod.run_graders(case.graders, ctx)
             result["passed"] = all(g["passed"] for g in result["grader_results"])
     except Exception as exc:  # a harness problem must never abort the suite or look like a stage failure

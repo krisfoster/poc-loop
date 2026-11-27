@@ -22,6 +22,8 @@ HELP = "skills/poc-help/SKILL.md"
 LOG = "skills/poc-log/SKILL.md"
 START = "skills/poc-start/SKILL.md"
 WF = "docs/workflow.md"
+CHECKER = "scripts/check-prereqs"
+TIME = "skills/poc-log/scripts/time_check.py"
 
 
 def move_line_before(text, line_start, before_start):
@@ -119,6 +121,25 @@ ROWS = [
      "- Later: <ideas parked, out of scope for now>\n- State: <>"),
     ("bare /clear in the workflow", WF, "use `/spike-loop:poc-debug`, or `/spike-loop:poc-checkpoint iterate` and then `/clear`.",
      "use `/spike-loop:poc-debug` or `/clear`."),
+    # Prerequisites (docs/prereqs/spec.md, Tests 4)
+    ("poc-log without its guard", LOG, lambda t: drop_line(t, "**Prerequisites.**")),
+    ("poc-log does not check python3", LOG, "check-prereqs\" poc-log git python3:optional`", "check-prereqs\" poc-log git`"),
+    ("packager does not check rsync", "agents/packager.md", "check-prereqs\" packager git rsync gitleaks:optional`",
+     "check-prereqs\" packager git gitleaks:optional`"),
+    ("agent guard without the skip", "agents/implementer.md",
+     "Skip this if the command that started you, or your brief, says prerequisites were checked. Otherwise, before",
+     "Before"),
+    ("skill without the quoted checker rule", "skills/poc-verify/SKILL.md",
+     '  - Bash(sh "${CLAUDE_PLUGIN_ROOT}/scripts/check-prereqs" *)\n', ""),
+    ("checker passes a missing required tool", CHECKER, '  echo "prereqs: missing${missing}"\n  exit 1',
+     '  echo "prereqs: missing${missing}"\n  exit 0'),
+    ("checker accepts Python 3.0", CHECKER, ">= (3, 9)", ">= (3, 0)"),
+    ("time check counts the template line", TIME, r'ENTRY_RE = re.compile(r"^## (\d{4}-\d{2}-\d{2})',
+     r'ENTRY_RE = re.compile(r"^## (\S+)'),
+    ("poc-log works out the time itself", LOG, "never work out elapsed time or count entries yourself.",
+     "then work out elapsed time and count entries yourself."),
+    ("over-timebox Next keyed on the model again", LOG, "if the time check printed `timebox: over` and",
+     "if the timebox looks exceeded and"),
 ]
 CONTROL = ("negative control: a harmless sentence", CP, "2. **Summary.** Print a summary",
            "2. **Summary.** Be brief. Print a summary")

@@ -1,0 +1,98 @@
+{
+  "id": "earlier-entries",
+  "stage": "poc-log",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "A log with three entries: they stay byte-identical, the new entry goes last, and the count is 4",
+  "prompt": "/spike-loop:poc-log Tried an HMAC known vector. Learned the signature matches. Dead ends: none. Decision: none yet.",
+  "fixture": "poc-log-history",
+  "allowed_tools": [
+    "Read",
+    "Edit",
+    "Write",
+    "Bash(date *)",
+    "Bash(git *)"
+  ],
+  "timeout_s": 240,
+  "max_cost_usd": 0.25,
+  "graders": [
+    {
+      "name": "dated_entries",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} ",
+      "flags": "m",
+      "count": 4
+    },
+    {
+      "name": "shows_the_script_values_4",
+      "type": "final_text_regex",
+      "pattern": "(\\b\\d+h \\d+m|\\b\\d+m)\\b[^\\n]*?\\b2\\ hours\\b[^\\n]*?\\b4 entries\\b",
+      "flags": "m",
+      "min": 1
+    },
+    {
+      "name": "new_entry_last",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "Header parsed[\\s\\S]*HMAC",
+      "count": 1
+    },
+    {
+      "name": "earlier_entries_byte_identical",
+      "type": "file_prefix_unchanged",
+      "path": "poc-spec/LOG.md"
+    },
+    {
+      "name": "no_em_dash_in_log",
+      "type": "no_em_dash",
+      "path": "poc-spec/LOG.md"
+    },
+    {
+      "name": "no_em_dash_in_reply",
+      "type": "no_em_dash",
+      "target": "final_text"
+    },
+    {
+      "name": "no_state_line",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "^- State:",
+      "flags": "m",
+      "count": 0
+    },
+    {
+      "name": "only_the_log_changed",
+      "type": "no_tracked_file_modified",
+      "except": [
+        "poc-spec/LOG.md"
+      ]
+    },
+    {
+      "name": "ends_with_next",
+      "type": "final_text_regex",
+      "pattern": "^Next: ",
+      "flags": "m",
+      "min": 1
+    },
+    {
+      "name": "ran_the_prereq_check",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "check-prereqs",
+      "min": 1
+    },
+    {
+      "name": "ran_the_time_check_script",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "time_check\\.py",
+      "min": 1
+    },
+    {
+      "name": "reply_shows_the_script_output",
+      "type": "reply_echoes_tool_output",
+      "input_regex": "time_check\\.py"
+    }
+  ]
+}

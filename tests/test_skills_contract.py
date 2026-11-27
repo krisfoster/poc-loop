@@ -136,6 +136,8 @@ class SkillsContractTest(unittest.TestCase):
         self.assertIn("unless the brief says not to", line[0])
         self.assertIn("Never commit in the main checkout", line[0])
 
+    # The poc-log time check and its Next rule (F2, F3) are pinned in tests/test_prereqs_contract.py.
+
     def test_poc_help_row_for_build_mentions_the_merge(self):
         row = [l for l in read("skills", "poc-help", "SKILL.md").splitlines() if "/spike-loop:poc-build" in l][0]
         self.assertIn("merge its branch", row)

@@ -1,0 +1,43 @@
+{
+  "id": "no-arguments",
+  "stage": "poc-start",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "No arguments: asks its questions and writes nothing",
+  "prompt": "/spike-loop:poc-start",
+  "fixture": "start-empty",
+  "allowed_tools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Glob",
+    "Grep",
+    "Bash(git *)",
+    "Bash(date *)",
+    "Bash(chmod *)",
+    "Bash(test *)"
+  ],
+  "timeout_s": 420,
+  "max_cost_usd": 1.0,
+  "graders": [
+    {
+      "name": "asks",
+      "type": "questions_before_write",
+      "min": 1
+    },
+    {
+      "name": "nothing_written",
+      "type": "no_tracked_file_modified",
+      "allow_new": false
+    },
+    {
+      "name": "nothing_committed_or_staged",
+      "type": "git_clean_history"
+    },
+    {
+      "name": "no_em_dash_in_reply",
+      "type": "no_em_dash",
+      "target": "final_text"
+    }
+  ]
+}

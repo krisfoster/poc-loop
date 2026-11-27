@@ -4,7 +4,7 @@
 
 - **`/spike-loop:poc-build` no longer guesses which of your commits the worktree has.** The 0.3.0 text said the worktree always branches from the remote default branch, so unpushed commits are never in it. In headless runs that was false in two cases: with no remote, and with `worktree.baseRef` set to `"head"`, the worktree started from your current commit. The command now runs `git log --oneline HEAD --not <branch>` after the build and names the commits on your current branch that the worktree lacks, or says it holds them all. Uncommitted work is never in the worktree. Checked headless, one run each, on Claude Code 2.1.325: no remote, a remote with `worktree.baseRef: "head"`, and a remote without it.
 - **The implementer agent commits its change in its worktree** when the done condition is met, unless the brief says not to, and never in the main checkout. `poc-build` already asked for this in its brief; the rule is now in the agent too.
-- Not checked: an interactive session.
+- Checked once interactively as well (Claude Code 2.1.325, plugin loaded with `--plugin-dir`, a repo with no remote): the worktree was made, the change committed on its branch and the main tree left alone, as in the headless runs. An installed plugin was not checked.
 
 ## 0.3.0
 

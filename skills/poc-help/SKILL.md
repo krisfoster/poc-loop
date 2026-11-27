@@ -27,8 +27,8 @@ Arguments: "$ARGUMENTS". Never use em dashes. This command only reads and prints
 | `/spike-loop:poc-review [path, branch or focus]` | Independent review of a diff or PoC | Fix findings, then `poc-harden` |
 | `/spike-loop:poc-package [path]` | Write README and `.env.example`, run the clean-clone test and secret scan | `poc-checkpoint harden` |
 | `/spike-loop:poc-harden [path] [full]` | Review, package and final gate in one go | `poc-checkpoint harden` |
-| `/spike-loop:poc-log [what you tried and learned]` | Append a dated entry to the log (`poc-spec/LOG.md`) and see time against the timebox | Decide: iterate, pivot, harden or stop |
-| `/spike-loop:poc-checkpoint [iterate, pivot, harden, stop]` | End-of-session summary, record the decision, write `SUMMARY.md` on stop or harden | `poc-harden`, a fresh session, or done |
+| `/spike-loop:poc-log [what you tried and learned]` | Append a dated entry to the log (`poc-spec/LOG.md`) and see time against the timebox | Decide: iterate, pivot, harden, stop or pause |
+| `/spike-loop:poc-checkpoint [iterate, pivot, harden, stop, pause [topic]]` | End-of-session summary, record the decision with a State line, write a hand-off on pause with a topic and `SUMMARY.md` on stop or harden | `poc-help` in a fresh session, `poc-harden`, or done |
 | `/spike-loop:poc-help [command]` | This help | The command it recommends |
 
 Every command ends with one line that starts with `Next:` and names the command to run next.
@@ -42,9 +42,32 @@ If the arguments name a command (`verify`, `poc-verify` or `/spike-loop:poc-veri
 1. Print the table above.
 2. **Where you are.** Resolve the docs folder by the docs-folder rule above and look for `<docs>/POC.md`, `<docs>/LOG.md` and `SUMMARY.md` (at the repo root). If the rule stops on a half-migrated PoC, print what it says and end with `Next:` naming the fix: keep one layout, then run `/spike-loop:poc-help` again. If no PoC file exists, print `No PoC found.` and end with `Next: /spike-loop:poc-start`. If the docs folder is the repo root (the older layout), print this line, and change nothing: `Older layout: POC.md and LOG.md are at the repo root. It works as is. To move them: mkdir poc-spec && git mv POC.md LOG.md poc-spec/ (use mv if they are untracked), then update CLAUDE.md.` Then continue with step 3.
 3. Otherwise read the header line of `<docs>/POC.md` (tier, `Started:`, timebox), its `## Question` line, and the last 25 lines of `<docs>/LOG.md`. Print at most 5 lines: the question, the tier, elapsed wall-clock time since `Started:` against the timebox (use `date` for the arithmetic, and say plainly if it is over, without nagging), the last Decision in `<docs>/LOG.md`, and whether `SUMMARY.md` exists.
-4. End with one line starting `Next:`, chosen by the last Decision:
+4. **State.** Only a `State:` line in the last dated entry (the last `## ` heading) of `<docs>/LOG.md` counts. A `- State:` line in an earlier entry is ignored, and a State line with any entry after it means "State unknown", as does no State line. Its fields are `branch`, `at`, `uncommitted`, `unmerged worktrees`, `waiting on you` and `resume`, separated by `; `. An `uncommitted` value is `none`, `not a git repo`, or `<n> paths: ` followed by the listed paths.
+5. **Staleness.** Only when the last entry has a State line. Gather the same values now with read-only git calls from the repo root, and compare:
+   - `git --no-optional-locks -C "<root>" rev-parse --is-inside-work-tree`. If it fails or does not print `true`, the current branch, at and uncommitted are `not a git repo`: skip the other calls.
+   - `git --no-optional-locks -C "<root>" branch --show-current` (`detached` when it prints nothing), and `git --no-optional-locks -C "<root>" rev-parse --short HEAD` (`no commits` when it fails).
+   - `git --no-optional-locks -C "<root>" status --porcelain -- . <exclusions>`, where `<exclusions>` is each name on the line for the layout as `":(exclude)<name>"`. The path is each line after its first three characters.
+
+   Exclusions, `poc-spec` layout: `poc-spec` `.claude` `SUMMARY.md`
+   Exclusions, root layout: `POC.md` `LOG.md` `SUMMARY.md` `.claude`
+
+   It is stale when any of these holds:
+   - The branch differs.
+   - The commit: if either at is `no commits` or `not a git repo`, stale when the two differ. Otherwise, when both are shas: stale when `git --no-optional-locks -C "<root>" merge-base --is-ancestor <recorded sha> HEAD` fails (a reset to before it, or a sha that does not exist), or when `git --no-optional-locks -C "<root>" log --oneline <recorded sha>..HEAD -- . <exclusions>` prints anything (a commit that only touches the excluded files does not count).
+   - Uncommitted, unless the repo is `not a git repo`: stale when the count of uncommitted paths differs from the recorded count, or when a listed path is no longer uncommitted.
+
+   Changes to `<docs>/LOG.md`, `SUMMARY.md` and `.claude/` never make it stale. If stale, print `State is from <entry date>; it may be stale: <what differs>`.
+6. **Hand-off.** If `resume:` names a file under `poc-spec/handoffs/`, read that one file with the Read tool and summarise it in at most 5 lines, marked as possibly stale when the State is stale. Read no other hand-off file: only the one `resume:` names.
+7. **Next.** End with one line starting `Next:`, from this table:
+
+| Last entry | Prints | `Next:` |
+|---|---|---|
+| State, fresh | `Resume:` and the `resume:` value | The `resume:` command |
+| State, stale | `State is from <entry date>; it may be stale: <what differs>` | iterate, pivot: `/spike-loop:poc-checkpoint <Decision>` to record the state again. pause: `/spike-loop:poc-checkpoint pause <topic>` with the topic taken from the hand-off file name without the date (and without a `-<n>` ending only when the file without it also exists, checked with Read), or `/spike-loop:poc-checkpoint pause` when there is no file. harden, stop: as in the list below |
+| No State, or a State line with any entry after it | `State unknown` | By the last Decision, as in the list below |
+
+   By the last Decision:
    - No entry beyond "PoC started", or `none yet`: `/spike-loop:poc-research <question>` if the question depends on facts not yet confirmed, otherwise build, then `/spike-loop:poc-verify` when there is something to check. If over the timebox, decide now with `/spike-loop:poc-checkpoint`.
-   - `iterate`: `/clear`, then work on the last "Next question" in `<docs>/LOG.md`.
-   - `pivot`: edit the assumptions in `<docs>/POC.md`, then `/clear`.
+   - `iterate`, `pivot` or `pause`: `/spike-loop:poc-checkpoint <Decision>`, which records the state and then names the fresh-session step.
    - `harden`: `/spike-loop:poc-harden` (add `full` for tier 2). If `SUMMARY.md` already exists, the PoC is hardened and nothing more is needed unless you iterate.
    - `stop`: `/spike-loop:poc-checkpoint stop` if `SUMMARY.md` is missing, otherwise the PoC is closed.

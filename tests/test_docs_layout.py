@@ -38,6 +38,9 @@ RULE_B_SKILLS = ["poc-checkpoint", "poc-harden", "poc-help", "poc-log", "poc-pac
 RULE_B_AGENTS = ["packager"]
 POC_START = "skills/poc-start/SKILL.md"
 POC_HELP = "skills/poc-help/SKILL.md"
+POC_CHECKPOINT = "skills/poc-checkpoint/SKILL.md"
+# The hand-off state rules (docs/handoff/spec.md) name the root-layout files in one exact line.
+ROOT_EXCLUSIONS = "Exclusions, root layout: `POC.md` `LOG.md` `SUMMARY.md` `.claude`"
 PACKAGER = "agents/packager.md"
 RULE_B_FILES = {"skills/%s/SKILL.md" % n for n in RULE_B_SKILLS} | {"agents/%s.md" % n for n in RULE_B_AGENTS}
 
@@ -49,6 +52,8 @@ def exempt_snippets(name):
         snippets += (RULE_B,)
     if name == POC_HELP:
         snippets += (LEGACY_NOTE,)
+    if name in (POC_HELP, POC_CHECKPOINT):
+        snippets += (ROOT_EXCLUSIONS,)
     if name == POC_START:
         snippets += (NO_OVERWRITE,)
     if name == PACKAGER:

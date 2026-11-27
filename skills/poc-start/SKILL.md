@@ -61,7 +61,7 @@ Append only. Newest entry last. Format per entry:
 - Tried: <>
 - Learned: <>
 - Dead ends: <>
-- Decision: <iterate | pivot | harden | stop | none yet>
+- Decision: <iterate | pivot | harden | stop | pause | none yet>
 - Next question: <>
 - Later: <ideas parked, out of scope for now>
 ````

@@ -17,13 +17,20 @@ Lost? `/spike-loop:poc-help` lists the commands and reads `poc-spec/POC.md` and 
 1. **Start** (about 10 minutes). `/spike-loop:poc-start`. It asks the tier, whether the PoC is tied to a deal, and interviews you for the question, the riskiest assumptions, how you will know it worked, and the timebox. Read and correct `poc-spec/POC.md`: that review matters most.
 2. **Research** (only if the question depends on facts). `/spike-loop:poc-research <question>`. Public docs from vendor sources, internal documents from the sources you set up. Returns a cited half page.
 3. **Build** (timeboxed, one unit of work per session). In the main session, staying within `poc-spec/POC.md`. New ideas go in `poc-spec/LOG.md` under Later. `/spike-loop:poc-build <task> | done when <condition>` hands a bounded chunk to the implementer in a separate git worktree. The worktree starts from the remote default branch (`origin/<default>`), so unpushed commits and uncommitted work are not in it. To include local work, commit it and set `worktree.baseRef` to `"head"`. The change stays on the worktree's branch until you merge it.
-4. **Verify.** `/spike-loop:poc-verify`. Pass or fail with only the relevant errors. A manual check comes back as needs-human, never passed. After two failed fix attempts use `/spike-loop:poc-debug` or `/clear`.
+4. **Verify.** `/spike-loop:poc-verify`. Pass or fail with only the relevant errors. A manual check comes back as needs-human, never passed. After two failed fix attempts use `/spike-loop:poc-debug`, or `/spike-loop:poc-checkpoint iterate` and then `/clear`.
 5. **Capture** (about 2 minutes). `/spike-loop:poc-log`.
-6. **Decide**, and write one outcome in `poc-spec/LOG.md`:
-   - **Iterate**: refine the question and start a fresh session.
-   - **Pivot**: edit `poc-spec/POC.md` because the learning invalidated an assumption.
+6. **Decide** with `/spike-loop:poc-checkpoint <iterate | pivot | harden | stop | pause>`. It writes one outcome entry to `poc-spec/LOG.md`, ending with a State line a fresh session can resume from:
+   - **Iterate**: refine the question. Run `/spike-loop:poc-checkpoint iterate`, then `/clear`, then `/spike-loop:poc-help` in the fresh session.
+   - **Pivot**: edit `poc-spec/POC.md` because the learning invalidated an assumption. `/spike-loop:poc-checkpoint pivot` makes the edit with you, then `/clear` and `/spike-loop:poc-help`.
    - **Harden**: `/spike-loop:poc-harden`.
    - **Stop**: record the answer and run `/spike-loop:poc-checkpoint stop` to write `SUMMARY.md`.
+   - **Pause**: stop mid-step with no loop decision, for example during spec or plan work. `/spike-loop:poc-checkpoint pause <topic>` also writes a hand-off file under `poc-spec/handoffs/`.
+
+## Fresh sessions and the State line
+
+A skill cannot clear context, so you do. `/spike-loop:poc-checkpoint` makes that safe: it writes the outcome entry with a one-line State (branch, commit, uncommitted paths, unmerged `poc-build` worktrees, what is waiting on you, and how to resume), reads it back, and only then prints `Next:` with the `/clear`. In the fresh session, `/spike-loop:poc-help` compares the State with the repo and prints the resume step, or says the State may be stale and what changed. After `pause <topic>`, the resume step names the hand-off file to read first.
+
+Known limit: the staleness check runs only when you type `/spike-loop:poc-help`. In headless probes (one run each), a session asked to "continue" read the log and acted on the resume step directly, without the check. A `SessionStart` hook that runs the check is possible future work.
 
 ## Match the ceremony to the task
 
@@ -31,7 +38,7 @@ Lost? `/spike-loop:poc-help` lists the commands and reads `poc-spec/POC.md` and 
 |---|---|---|
 | 0 | You can describe the change in one sentence | Just ask. No files |
 | 1 | A bounded experiment, under a few hours | `poc-spec/POC.md` as a few lines, one or two `poc-spec/LOG.md` entries, lean harden |
-| 2 | A multi-day or customer-facing PoC | Full loop, `/clear` between passes, the Opus reviewer and a full harden |
+| 2 | A multi-day or customer-facing PoC | Full loop, `/spike-loop:poc-checkpoint` between passes, the Opus reviewer and a full harden |
 | 3 | Production-bound work growing out of a PoC | Write a real spec in a fresh session |
 
 ## Who does what

@@ -1,6 +1,6 @@
 # Spec: prerequisites, checked and explained, and a scripted time check for `poc-log`
 
-Status: draft 2, 2026-11-27, revised after the independent review R.1 (`docs/prereqs/review.md`). Branch: `prereqs`, off `evals-phase-2`.
+Status: draft 2, 2026-11-27, revised after the independent review R.1 (`docs/prereqs/review.md`). Implemented on this branch with one deviation, recorded under Deviations. Branch: `prereqs`, off `evals-phase-2`.
 
 Maintainer decisions (2026-11-27): the `poc-log` time check (finding F2 in `docs/evals/findings.md`) is computed by a Python script, and the skill guards it with a prerequisite check. Every skill and agent is audited so that each tool it needs is recorded, checked, and explained to the user with a message saying how to fix it.
 
@@ -148,3 +148,7 @@ Standard library only, Python 3.9+. Called after the entry is appended, as `pyth
 1. Add `engines` with a minimum Claude Code version to `plugin.json`? Separate change.
 2. Should `poc-checkpoint` and `poc-help` use the time check script too?
 3. Keep `rsync` as a packager requirement, or switch the clean-clone copy to `git ... | tar`, which needs nothing beyond git and the baseline?
+
+## Deviations during implementation
+
+1. **`python3` is optional for `poc-research`, not required** (section 2 said required). `poc-research` uses `python3` only for its setup check (`spike_sources.py status`), and public research works without it, so stopping the command would remove something that works today, the same reasoning as review finding 1 for `poc-log`. Without `python3` the skill says so and researches public sources only. `poc-sources` keeps it required: the whole command is the helper.

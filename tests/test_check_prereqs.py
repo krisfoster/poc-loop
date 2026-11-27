@@ -79,11 +79,24 @@ class CheckerTests(unittest.TestCase):
         self.assertIn("/spike-loop:poc-log leaves out the time check", skip[0])
         self.assertEqual(out.strip().splitlines()[-1], "prereqs: ok")
 
+    def python_as(self, version):
+        """A python3 shim that runs the checker's real check with sys.version_info set to version."""
+        real = shutil.which("python3")
+        v = tuple(int(x) for x in version.split("."))
+        return self.fake("python3", 'exec "%s" -c "import sys; sys.version_info = %r + (\'final\', 0); '
+                         'exec(sys.argv[1])" "$2"\n' % (real, v))
+
+    @unittest.skipUnless(shutil.which("python3"), "python3 needed")
     def test_old_python_counts_as_missing(self):
-        fakebin = self.fake("python3", 'echo "3.8.10"\nexit 1\n')
-        code, out, _ = self.run_checker("poc-research", "python3", hide=["python3"], extra_bin=fakebin)
+        code, out, _ = self.run_checker("poc-research", "python3", hide=["python3"], extra_bin=self.python_as("3.8.10"))
         self.assertEqual(code, 1, out)
         self.assertIn("found 3.8.10", out)
+
+    @unittest.skipUnless(shutil.which("python3"), "python3 needed")
+    def test_python_3_9_is_enough(self):
+        code, out, _ = self.run_checker("poc-research", "python3", hide=["python3"], extra_bin=self.python_as("3.9.0"))
+        self.assertEqual(code, 0, out)
+        self.assertIn("ok: python3 3.9.0", out)
 
     def test_agent_names_read_as_agents(self):
         code, out, _ = self.run_checker("packager", "rsync", hide=["rsync"])

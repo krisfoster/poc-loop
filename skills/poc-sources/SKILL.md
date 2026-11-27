@@ -5,10 +5,15 @@ disable-model-invocation: true
 model: sonnet
 effort: medium
 argument-hint: "[setup | status | refresh | add <note>]"
+allowed-tools:
+  - Bash(sh ${CLAUDE_PLUGIN_ROOT}/scripts/check-prereqs *)
+  - Bash(sh "${CLAUDE_PLUGIN_ROOT}/scripts/check-prereqs" *)
 ---
 # poc-sources
 
 Arguments: "$ARGUMENTS". Never use em dashes in anything you write. This skill changes only two things: the user's sources file and one generated agent file. It never edits any other file.
+
+**Prerequisites.** Before anything else, run `sh "${CLAUDE_PLUGIN_ROOT}/scripts/check-prereqs" poc-sources python3` and read its output. If the last line is `prereqs: missing ...`, print each `MISSING:` line as it is, change nothing, and end with `Next: install what is missing, then run /spike-loop:poc-sources again`. Print any `skipped:` line and leave out the step that needs that tool. If the check cannot run (refused, not found, or no POSIX shell), say so in one line and continue: a command that needs a missing tool will fail with its own error. This check covers any agent this command starts: when you brief an agent, say "prerequisites checked".
 
 Helper (standard library Python): `python3 "${CLAUDE_SKILL_DIR}/scripts/spike_sources.py"`. Call it `HELPER` below. Where things live:
 - Sources file: `~/.config/spike-loop/research-sources.md` (override with `SPIKE_LOOP_CONFIG`). Plain notes on where documents live. Outside every repo on purpose, so it is never committed.

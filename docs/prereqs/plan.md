@@ -14,7 +14,7 @@ Order: probes first (they decide two design points), then the free work with tes
 
 Probe scripts go in `docs/prereqs/tools/probes/`, reusing `docs/layout/tools/probes/probe_run.py` for isolation and token handling. Results in `docs/prereqs/findings.md`. Estimated cost under $0.15.
 
-## Phase 1: checker and registry (free)
+## Phase 1: checker and registry (free). Done 2026-11-27
 
 | ID | Task | Acceptance |
 |---|---|---|
@@ -22,14 +22,14 @@ Probe scripts go in `docs/prereqs/tools/probes/`, reusing `docs/layout/tools/pro
 | 1.2 | `scripts/check-prereqs`: registry for `git`, `python3`, `rsync`, `gitleaks`, `typos`; output and exit codes per spec section 1 | 1.1 passes on macOS; `sh -n` clean; `shellcheck` clean if installed |
 | 1.3 | `docs/prerequisites.md` and a test that it matches the registry; README Requirements points at it | Test passes; a changed message in the script fails it |
 
-## Phase 2: time check script (free)
+## Phase 2: time check script (free). Done 2026-11-27
 
 | ID | Task | Acceptance |
 |---|---|---|
 | 2.1 | `tests/test_time_check.py` first (spec, Tests 2) | Fails: no script yet |
 | 2.2 | `skills/poc-log/scripts/time_check.py` per spec section 3, standard library, 3.9+ | 2.1 passes |
 
-## Phase 3: skills and agents (free)
+## Phase 3: skills and agents (free). Done 2026-11-27: 12 skills and 7 agents guarded, mutation harness 60 rows, 0 wrong. Deviation: `python3` optional for `poc-research` (spec, Deviations)
 
 | ID | Task | Acceptance |
 |---|---|---|

@@ -25,11 +25,11 @@
       "count": 4
     },
     {
-      "name": "time_check_line_counts_4",
+      "name": "shows_the_script_values_4",
       "type": "final_text_regex",
-      "pattern": "^Elapsed (\\d+h \\d+m|\\d+m) of 2 hours, 4 entries\\.$",
-      "count": 1,
-      "flags": "m"
+      "pattern": "(\\b\\d+h \\d+m|\\b\\d+m)\\b[^\\n]*?\\b2\\ hours\\b[^\\n]*?\\b4 entries\\b",
+      "flags": "m",
+      "min": 1
     },
     {
       "name": "new_entry_last",

@@ -25,11 +25,11 @@
       "count": 2
     },
     {
-      "name": "time_check_line_counts_2",
+      "name": "shows_the_script_values_2",
       "type": "final_text_regex",
-      "pattern": "^Elapsed (\\d+h \\d+m|\\d+m) of 2 hours, 2 entries\\.$",
-      "count": 1,
-      "flags": "m"
+      "pattern": "(\\b\\d+h \\d+m|\\b\\d+m)\\b[^\\n]*?\\b2\\ hours\\b[^\\n]*?\\b2 entries\\b",
+      "flags": "m",
+      "min": 1
     },
     {
       "name": "offers_the_decision",

@@ -40,7 +40,7 @@ A skill cannot clear context. The docs describe `/clear` only as a user command 
 - A `SessionStart` hook in this change (option C below). It is recorded as future work (see "Future work").
 - Changing what `POC.md` or `SUMMARY.md` contain.
 - Changing the `CLAUDE.md` wiring text that `poc-start` appends. It is carried word for word in three places and checked verbatim by the layout tests, and this design does not need a new sentence in it.
-- Hand-offs for this plugin's own development (the maintainer's `~/claude_work` notes). This spec governs the PoC repos the plugin creates.
+- Hand-offs for this plugin's own development (the maintainer's own notes). This spec governs the PoC repos the plugin creates.
 - Recording running processes automatically. A skill cannot list them reliably, so it records only what the user says.
 - Comparing worktrees in the staleness check. A merge of a worktree branch moves HEAD with code commits, which the check already sees.
 - Writing to any external system.

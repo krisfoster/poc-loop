@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- **`/spike-loop:poc-log` prints its time-check line as written.** The step now says to print `Elapsed <x> of <timebox>, <n> entries.` exactly, with only the values filled in, and to put any comment on the next line. Before, one headless run in 18 rewrote the line in its own words. In 21 runs after the change the wording held in all of them, and one run still added its comment on the same line.
+- **`/spike-loop:poc-log` asks for its time-check line exactly.** The step now says to print `Elapsed <x> of <timebox>, <n> entries.` exactly, with only the values filled in, and to put any comment on the next line. Before, one headless run in 18 rewrote the line in its own words. This is not shown to help: in 39 runs after the change, 3 broke the line (two added a comment on the same line, one reworded it).
+- **`/spike-loop:poc-log` asks you to decide when the timebox is over.** The over-timebox `Next:` rule was a note in brackets inside the `none yet` rule, and one headless run in four pointed at `/spike-loop:poc-verify` instead. It is now its own rule, checked first, and names `/spike-loop:poc-checkpoint`. In 18 runs after the change, the `Next:` line was right in all of them, over and within the timebox.
 - **Evals Phase 2 (in progress).** A grader library for the eval harness (`evals/harness/graders.py`), 6 more `poc-log` cases and 23 cases for `poc-start`, `poc-checkpoint` and `poc-verify`, each checked against a hand-made correct result and a planted defect before any live run. Smoke runs only so far. See `evals/README.md`.
 
 ## 0.3.1

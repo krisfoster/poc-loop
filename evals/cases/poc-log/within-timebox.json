@@ -34,7 +34,7 @@
     {
       "name": "no_decision_prompt",
       "type": "final_text_regex",
-      "pattern": "(?i)iterate,? (or )?pivot,? (or )?harden",
+      "pattern": "(?i)iterate\\s*[,|]?\\s*(or )?pivot\\s*[,|]?\\s*(or )?harden",
       "count": 0
     },
     {

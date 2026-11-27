@@ -143,6 +143,15 @@ class SkillsContractTest(unittest.TestCase):
         self.assertIn("Put any comment on the next line, never inside it.", step)
         self.assertNotIn("Print one line:", step)
 
+    def test_poc_log_over_timebox_next_is_its_own_rule(self):  # docs/evals/findings.md, F3
+        step = next(l for l in read("skills", "poc-log", "SKILL.md").splitlines() if l.startswith("5. "))
+        rule = ("First, if the time check found the timebox exceeded and the Decision is `none yet`, the line is "
+                "`Next: /spike-loop:poc-checkpoint <iterate | pivot | harden | stop | pause>` to decide now, "
+                "never `/spike-loop:poc-verify`.")
+        self.assertIn(rule, step)
+        self.assertLess(step.index(rule), step.index("`none yet`: keep building"))
+        self.assertNotIn("(if over the timebox", step)
+
     def test_poc_help_row_for_build_mentions_the_merge(self):
         row = [l for l in read("skills", "poc-help", "SKILL.md").splitlines() if "/spike-loop:poc-build" in l][0]
         self.assertIn("merge its branch", row)

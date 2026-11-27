@@ -32,9 +32,9 @@
       "flags": "m"
     },
     {
-      "name": "says_over",
+      "name": "offers_the_decision",
       "type": "final_text_regex",
-      "pattern": "(?i)\\b(exceed|over|past|beyond)",
+      "pattern": "(?i)iterate\\s*[,|]?\\s*(or )?pivot\\s*[,|]?\\s*(or )?harden",
       "min": 1
     },
     {

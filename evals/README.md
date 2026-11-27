@@ -2,7 +2,7 @@
 
 Evals for the Spike Loop skills and agents. Design: `docs/evals/spec.md`. Plan: `docs/evals/plan.md`. What was learned about headless runs: `docs/evals/spike-findings.md`. Plugin defects found along the way: `docs/evals/findings.md`.
 
-Status: Phase 1 (harness core) and Phase 2 in progress: the grader library, 11 `poc-log` cases run as a smoke set, and 23 `poc-start`, `poc-checkpoint` and `poc-verify` cases written but not yet run. Everything else is in the plan.
+Status: Phase 1 (harness core) and Phase 2 in progress: the grader library, 11 `poc-log` cases run as a smoke set, and 23 `poc-start`, `poc-checkpoint` and `poc-verify` cases run once each (23 of 23 passed). Everything else is in the plan.
 
 ## Free and paid
 
@@ -53,9 +53,11 @@ Five `poc-log` cases for the `poc-spec/` layout, run 3 times each on Claude Code
 
 Six more `poc-log` cases, run 3 times each on Claude Code 2.1.325 (Haiku): `fresh-log` 3/3, `earlier-entries` 3/3, `started-no-time` 3/3, `timebox-exceeded` 3/3, `within-timebox` 2/3, `missing-files` 3/3. The one failure printed the time-check line in its own words (finding F2 in `docs/evals/findings.md`), a plugin defect, not a bad case. Mean estimated cost $0.0036 per run, mean 9.5 seconds, $0.066 for all 18. Before the live runs, each case's graders were checked against a hand-made correct result and one with a planted defect. Still a smoke result, not a noise measurement (plan, Gate 2).
 
-## Phase 2 stage cases (written 2026-11-27, not yet run)
+## Phase 2 stage cases (2026-11-27)
 
-Seven `poc-start` cases (`all-answers`, `public-repo`, `partial-answers`, `no-arguments`, `tier-0`, `existing-poc`, `no-git-repo`), ten `poc-checkpoint` cases (the five outcomes, `stop-existing-summary`, `pause-bad-topic`, `empty-argument`, `root-layout`, `missing-files`) and six `poc-verify` cases (`pass`, `fail`, `makefile-only`, `stub`, `manual`, `many-service`). The `POC.md` line limit is 40: the template is 23 lines, a filled one measured 24 (spike-findings 0.6), so 40 leaves room for filled assumptions and scope. It is provisional until the live runs. `poc-start/all-answers` and `public-repo` run the written `verify.sh` through `command_exit`, so they need `--unsandboxed-ok`. `poc-verify/many-service` grants no `docker`, so nothing is started.
+Seven `poc-start` cases (`all-answers`, `public-repo`, `partial-answers`, `no-arguments`, `tier-0`, `existing-poc`, `no-git-repo`), ten `poc-checkpoint` cases (the five outcomes, `stop-existing-summary`, `pause-bad-topic`, `empty-argument`, `root-layout`, `missing-files`) and six `poc-verify` cases (`pass`, `fail`, `makefile-only`, `stub`, `manual`, `many-service`). The `POC.md` line limit is 40: the template is 23 lines, a filled one measured 24 (spike-findings 0.6), so 40 leaves room for filled assumptions and scope. It is provisional until the live runs.
+
+Smoke run, 1 run per case, Claude Code 2.1.325: all 23 passed, $2.06 estimated in total. `poc-start` (Opus) $0.08 to $0.23 per run, $1.09 for 7. `poc-checkpoint` (Sonnet) $0.06 to $0.13, $0.97 for 10. `poc-verify` (Haiku, forked) about $0.0015 each, $0.009 for 6 (the fork's tokens are in the result's `modelUsage`, matching spike-findings 0.3). 17 of the 23 runs had permission denials, all of the same two kinds and all recovered from: a compound command the narrow grants do not cover (`cd ... && ./verify.sh; echo "exit=$?"`, a `R=...; git ...` chain), retried as a plain command, and `cat >> LOG.md`, after which the run used `Edit`. So these cases do not use `no_permission_denials`. One run per case shows the cases work, not how often a stage passes. `poc-start/all-answers` and `public-repo` run the written `verify.sh` through `command_exit`, so they need `--unsandboxed-ok`. `poc-verify/many-service` grants no `docker`, so nothing is started.
 
 Not graded yet: the 12-line limit on the checkpoint summary (it cannot be told apart from the rest of the reply), process teardown in `poc-verify`, elapsed time within a minute of truth in `poc-log`, the `poc-start` vague-answers case (no deterministic oracle), the pivot edit to `POC.md` (it needs the user's agreement, which a headless run cannot give), and a State with uncommitted work (the runner commits the whole fixture).
 

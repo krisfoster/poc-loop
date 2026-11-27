@@ -17,7 +17,7 @@ Spec: `docs/handoff/spec.md` (draft 6, read it first). Review record: `docs/hand
 | Phase | Needs | Output |
 |---|---|---|
 | R. Independent review of spec and plan | drafts | Done, twice. Record in `docs/handoff/review.md`. Git rules checked free |
-| 0. Probes | R | Baseline for option A: does a fresh headless session read the log tail and follow a `resume:` pointer, with and without the wiring |
+| 0. Probes (done, `docs/handoff/findings.md`) | R | Baseline for option A: does a fresh headless session read the log tail and follow a `resume:` pointer, with and without the wiring |
 | 1. Tests first | 0 | `tests/test_handoff_state.py` and changes to the contract tests, failing for the expected reasons |
 | 2. Implementation | 1 | Skills, template Decision list, docs, changelog, version 0.3.0 |
 | 3. Verification | 2 | Green tests, mutation check, scans, independent diff review, manual runs in scratch repos |
@@ -46,6 +46,10 @@ Scratch PoC repos built by a script kept under `docs/handoff/tools/` (no model n
 | P1c | The same repo and wiring, first prompt "Where are we and what should I do next?" | The status-question case, which reads the files either way, as a comparison only |
 | P2 | Wiring unchanged, a hand-off file under `poc-spec/handoffs/`, a last `State:` line whose `resume:` names it. Task prompt as in P1a | Does the session follow the `resume:` pointer to the hand-off from the log tail alone |
 | P4 | `claude -p` in a throwaway plugin with a trivial `SessionStart` hook that prints a marker | Whether SessionStart runs headless (the `startup` matcher only: `clear` cannot fire headless unless P0 shows otherwise) and whether the marker reaches the model. Informs option C only |
+
+P4b (added after P0 showed `/clear` works headless): the same throwaway plugin with a `clear`-only matcher, `/clear` sent in stream-json. Answers whether the `clear` matcher fires headless. Paid from the re-run allowance.
+
+Result (2026-11-27, 7 runs, about 0.28 USD): gate 0 passes. See `docs/handoff/findings.md`. 4 of the 5 re-runs remain.
 
 The staleness check cannot be probed before `poc-help` implements it, so it moves to 3.3. The earlier P3 is dropped.
 

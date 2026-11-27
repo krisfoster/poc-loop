@@ -106,6 +106,9 @@ def validate(raw, path, fixtures_dir=None):
                 continue
             for req in graders_mod.REQUIRED_PARAMS[spec["type"]]:
                 _check(path, "%s.%s" % (where, req), req in spec, "required for grader '%s'" % spec["type"], errors)
+            if all(req in spec for req in graders_mod.REQUIRED_PARAMS[spec["type"]]):
+                for msg in graders_mod.check_spec(spec):
+                    errors.append("%s: field '%s': %s" % (path, where, msg))
     if errors:
         return None, errors
     return Case(

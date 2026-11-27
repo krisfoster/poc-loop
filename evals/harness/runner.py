@@ -80,6 +80,8 @@ def broad_grants(case):
                 out.append(t)
         elif t.startswith(base + "(*"):
             out.append(t)
+    # A command_exit grader runs files in the workspace, which the model may have written.
+    out += ["command_exit grader: %s" % " ".join(gs["argv"]) for gs in case.graders if gs.get("type") == "command_exit"]
     return out
 
 
@@ -257,7 +259,8 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
                 result.update(status="harness_failure", reason="result error: %s" % summary["result_subtype"])
 
         if result["status"] == "ok":
-            ctx = {"workspace": ws, "summary": summary, "before": before, "after": after}
+            ctx = {"workspace": ws, "fixture": Path(fixtures_dir) / case.fixture, "summary": summary,
+                   "before": before, "after": after, "events_text": ev.redact(stdout, (token,))}
             result["grader_results"] = graders_mod.run_graders(case.graders, ctx)
             result["passed"] = all(g["passed"] for g in result["grader_results"])
     except Exception as exc:  # a harness problem must never abort the suite or look like a stage failure

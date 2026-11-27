@@ -2,7 +2,7 @@
 
 A small PoC workflow for [Claude Code](https://claude.com/claude-code), packaged as a plugin. Write down the question and the success check, build in a timeboxed loop, verify and review with cheap isolated subagents, then package for handoff.
 
-Status: 0.2.1, early. The measurements are one run per variant on one small task, so read them as indicative only: see [how to read them](docs/measurements.md#how-to-read-this).
+Status: 0.3.0, early. The measurements are one run per variant on one small task, so read them as indicative only: see [how to read them](docs/measurements.md#how-to-read-this).
 
 ## What you get
 
@@ -19,7 +19,7 @@ Status: 0.2.1, early. The measurements are one run per variant on one small task
 | `/spike-loop:poc-build` | One bounded chunk of an approved plan, built in a separate git worktree (it starts from the remote default branch, and you merge the result) |
 | `/spike-loop:poc-package` | README, run steps, `.env.example`, clean-clone test, secret scan |
 | `/spike-loop:poc-harden` | Review, then package, then final gate. Lean path for small PoCs, full path with `full` |
-| `/spike-loop:poc-checkpoint` | End-of-session summary, and `SUMMARY.md` on stop or harden |
+| `/spike-loop:poc-checkpoint` | End-of-session summary with a State line a fresh session can resume from, `pause [topic]` for a hand-off file, and `SUMMARY.md` on stop or harden |
 
 Every command ends with a line starting `Next:` that names the command to run next, so you do not have to remember the flow. Run `/spike-loop:poc-help` any time to see the commands and where the current PoC stands.
 

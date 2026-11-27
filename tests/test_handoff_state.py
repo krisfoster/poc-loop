@@ -199,6 +199,7 @@ class CheckpointOrder(unittest.TestCase):
         n = step(self.text, "Next.")
         self.assertIsNotNone(n)
         self.assertRegex(n, r"`/clear`, then `/spike-loop:poc-help`")
+        self.assertEqual(n.count("/clear"), 1, "the Next step names /clear once, for iterate, pivot and pause")
 
 
 class GitCommands(unittest.TestCase):
@@ -251,6 +252,9 @@ class HelpRules(unittest.TestCase):
         for line in self.text.splitlines():
             if "Next" in line:
                 self.assertNotIn("/clear", line, "a Next rule in poc-help names /clear: %s" % line.strip())
+        nxt = step(self.text, "Next.")
+        self.assertIsNotNone(nxt, "poc-help has one **Next.** step")
+        self.assertNotIn("/clear", nxt, "the Next step, its table and its Decision list never name /clear")
 
     def test_stale_pause_takes_the_topic_from_the_file_name(self):  # plan 1.4
         stale = self.rows().get("State, stale")
@@ -259,7 +263,10 @@ class HelpRules(unittest.TestCase):
         self.assertRegex(stale[2], r"(?i)file name")
 
     def test_last_entry_only_and_no_fallback(self):  # plan 1.5
-        self.assertRegex(self.text, r"(?i)only a `State:` line in the last dated entry")
+        st = step(self.text, "State.")
+        self.assertIsNotNone(st, "poc-help has one **State.** step")
+        self.assertRegex(st, r"(?i)only a `State:` line in the last dated entry")
+        self.assertRegex(st, r'(?i)with any entry after it means "State unknown"')
         self.assertRegex(self.text, r"(?i)State unknown")
         self.assertNotRegex(self.text, r"(?i)newest[^.]*handoffs")
         rows = self.rows()
@@ -307,6 +314,59 @@ class Workflow(unittest.TestCase):
             if "/clear" in sentence:
                 self.assertIn("/spike-loop:poc-checkpoint", sentence.split("/clear")[0],
                               "a /clear not preceded by the checkpoint: %s" % sentence.strip())
+
+
+# Key clauses pinned word for word, as the layout tests pin Rule A and Rule B: a rewording that flips
+# a rule (fails to succeeds, never to always) must fail a test. (file, step label or None, phrase)
+PINNED = [
+    (HELP, "Staleness.", "merge-base --is-ancestor <recorded sha> HEAD` fails"),
+    (HELP, "Staleness.", "<recorded sha>..HEAD -- . <exclusions>` prints anything"),
+    (HELP, "Staleness.", "Otherwise, when both are shas:"),
+    (HELP, "Staleness.", "stale when the count of uncommitted paths differs from the recorded count"),
+    (HELP, "Staleness.", "or when a listed path is no longer uncommitted"),
+    (HELP, "Staleness.", '`":(exclude)<name>"`'),
+    (HELP, "State.", "(the last `## ` heading)"),
+    (HELP, "Hand-off.", "Read no other hand-off file: only the one `resume:` names."),
+    (CHECKPOINT, "Closing entry.", "to `<docs>/LOG.md` for every outcome:"),
+    (CHECKPOINT, None, "The command is the next piece of work, never `/clear` or `/spike-loop:poc-help`: those belong in the `Next:` line"),
+    (CHECKPOINT, "Closing entry.", "with the `State:` line from the State step as its last line."),
+    (CHECKPOINT, "Topic.", "Refuse anything else (a `.`, a `/`, an empty result)"),
+    (CHECKPOINT, "Hand-off file.", "use the first whose Read fails as not found"),
+    (CHECKPOINT, "Hand-off file.", "at most 40 lines: what was done, the State line, decisions waiting, "
+                                   "gotchas learned, files to read first, the next step."),
+    (CHECKPOINT, "State.", "Take only entries under `<main checkout>/.claude/worktrees/`, not the root's own worktree."),
+    (CHECKPOINT, None, '`":(exclude)<name>"`'),
+    (LOG, None, "Never write a `State:` line: only `/spike-loop:poc-checkpoint` records the state."),
+]
+EXACT_LINES = [
+    (HELP, 'Arguments: "$ARGUMENTS". Never use em dashes. This command only reads and prints. '
+           'Write nothing and run nothing that changes a file.'),
+    (CHECKPOINT, 'Outcome from the user: "$ARGUMENTS". Never use em dashes. Do not commit.'),
+]
+
+
+class PinnedClauses(unittest.TestCase):
+    def test_key_clauses_are_word_for_word(self):
+        for rel, label, phrase in PINNED:
+            text = read(rel) if label is None else step(read(rel), label)
+            self.assertIsNotNone(text, "%s has no **%s** step" % (rel, label))
+            self.assertIn(phrase, text, "%s %s" % (rel, label or ""))
+
+    def test_exact_lines(self):
+        for rel, line in EXACT_LINES:
+            self.assertIn(line, read(rel).splitlines(), rel)
+
+    def test_help_status_mode_never_writes(self):
+        status = read(HELP).split("## With no arguments", 1)[1]
+        self.assertNotRegex(status, r"(?i)\bappend|\b(edit|write) tool\b|with the (edit|write)\b|\brecord it again\b")
+
+    def test_fresh_row_next_is_the_resume_command(self):
+        for line in read(HELP).splitlines():
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if cells and cells[0] == "State, fresh":
+                self.assertEqual(cells[2], "The `resume:` command")
+                return
+        self.fail("no State, fresh row")
 
 
 class GitRulesScript(unittest.TestCase):

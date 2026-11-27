@@ -79,3 +79,28 @@ Independent `reviewer` agent, 2026-11-27, on draft 5, the plan and the script. I
 The reviewer noted that its mutations could not be re-run by anyone else. They are now `docs/handoff/tools/mutate_git_rules.py`: 13 mutations, each restoring an earlier rule or breaking one, and each fails at least one check (2026-11-27, git 2.55.0). The first run counted the quoted-names mutation as missed: the mutated copy crashed in `parse_state` instead of reporting a failed check. The check now catches that case and reports it as a failure.
 
 `COMMANDS` is checked against the spec, not against the reference implementation's own calls: the list is the reference the skill tests will use. Not checked: anything a model does with these rules (Phase 0 and 3.3).
+
+## Implementation review (Phase 3.2)
+
+Independent `reviewer` agent, 2026-11-27, on the staged implementation diff. It ran the suite (113 pass) and the three tools, and tried to break the tests by editing a copy of the skills: 20 of its 22 wrong edits passed. No blocker; 5 major and 9 minor findings, all applied.
+
+| # | Severity | Finding | Handling |
+|---|---|---|---|
+| 1 | MAJOR | Staleness predicates could be flipped (merge-base "fails" to "succeeds", log "prints anything" to "nothing", listed-path rule inverted, count clause deleted) and the tests passed | Each predicate pinned word for word (`PINNED` in the tests) and a mutation row each |
+| 2 | MAJOR | `poc-help` could be told to write the State back, or its read-only line weakened, and the tests passed | The read-only line is checked as an exact line, and the status mode may not name append, the Edit or Write tool, or "record it again" |
+| 3 | MAJOR | "first whose Read fails as not found" could become "succeeds" (overwrite) | Pinned |
+| 4 | MAJOR | The `":(exclude)<name>"` conversion could be dropped from either skill | Pinned in both |
+| 5 | MAJOR | `poc-log` "Never write a `State:` line" could become "Always" | Pinned |
+| 6 | MINOR | Eight more rule rewordings passed (pause skipping the entry, topic coerced, the fresh row looping, a "most recent" fallback, the worktree filter, first heading, worktree path in the hand-off, commit) | Each pinned or checked exactly, a mutation row each |
+| 7 | MINOR | `poc-help` listed merge-base and log as separate stale conditions, so a no-commits repo could run them on "no commits" | Restructured: "Otherwise, when both are shas:", pinned |
+| 8 | MINOR | An unconfirmed outcome goes straight to Next, which said "only after a read-back that passed" | "or, when the outcome was not confirmed, without one" |
+| 9 | MINOR | Removing any `-2` from a hand-off name strips a real topic ending (`phase-2`) | Strip `-<n>` only when the file without it also exists, checked with Read. Spec updated |
+| 10 | MINOR | `poc-help` set only branch and at to `not a git repo` | All three it compares, and its grammar lists the value |
+| 11 | MINOR | README status still 0.2.1 | 0.3.0 |
+| 12 | MINOR | Spec said nothing was implemented, and promised `test_skills_contract.py` changes | Status line and Tests line corrected, plan 1.8 points at `test_handoff_state.py` |
+| 13 | MINOR | `docs/workflow.md` stated the "continue" behaviour as general fact | Qualified: headless probes, one run each |
+| 14 | MINOR | `findings.md` named the managed plugin prefix | Removed there. The prefix is already named in `docs/layout/findings.md` and `docs/evals/spike-findings.md` (earlier releases); left for the maintainer |
+
+The reviewer's own mutation script was then re-run on the fixed tree: two edits still passed (the State line moved off the last line of the entry, and a second `/clear` added to the checkpoint's Next step). Both were pinned. After that every one of its edits that still applies is caught. `docs/handoff/tools/mutate.py` now has 48 rows plus a negative control, 0 wrong, and the suite has 117 tests.
+
+Also noted by the reviewer and added to the spec's Risks: the Claude Code docs say the Desktop app's `worktree.location` setting can put worktrees outside `.claude/worktrees/` (read 2026-11-27, not tested), and the State would then miss them.

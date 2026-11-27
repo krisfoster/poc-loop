@@ -1,6 +1,6 @@
 # Spec: hand-off state, so a fresh session can pick a PoC up
 
-Status: draft 6, revised after the second independent review of 2026-11-27 (R.3) and a check of draft 5 the same day (R.3b), see `docs/handoff/review.md`. Branch: `handoff-state-spec`, off `main` at `0317448` (v0.2.1). Nothing here is implemented. The plan is `docs/handoff/plan.md`. The git rules below are checked free by `docs/handoff/tools/check_git_rules.py`.
+Status: draft 6, revised after the second independent review of 2026-11-27 (R.3) and a check of draft 5 the same day (R.3b), see `docs/handoff/review.md`. Branch: `handoff-state-spec`, off `main` at `0317448` (v0.2.1). Implemented on this branch for 0.3.0 (plan Phases 1 and 2). The plan is `docs/handoff/plan.md`. The git rules below are checked free by `docs/handoff/tools/check_git_rules.py`.
 
 Maintainer decisions (2026-11-26): `pause` is a new outcome of `poc-checkpoint` and not a new command; only `poc-checkpoint` writes State; only branch names are stored, never worktree paths; the version is 0.3.0; a `SessionStart` hook (option C) is built later and only if the cold-start check shows it is needed.
 
@@ -76,7 +76,7 @@ Six fields, in this order, separated by `; `. Each value is one of:
 | `uncommitted` | `none`, or `<n> paths: <p1>, <p2>, ...` listing at most 5 paths and ending `, ...` when some are not listed, or `<n> paths: ...` when none can be listed, or `not a git repo`. A path git prints in double quotes (a space, `;` or other unusual character) is counted, never listed |
 | `unmerged worktrees` | `none`, or a `, `-separated list where each item is a branch name or `detached <short sha>`, followed by ` (uncommitted)` when that worktree has uncommitted changes, or `not a git repo` |
 | `waiting on you` | `none`, or the decision in a few words, with no `;` |
-| `resume` | one command, or one sentence naming a command, with no `;`. By outcome: iterate, the next question as a sentence; pivot, the same after the `POC.md` edit; `pause <topic>`, `read poc-spec/handoffs/<file>, then <command>`; `pause` with no topic, the next step as a sentence; harden, `/spike-loop:poc-harden`; stop, `none, the PoC is closed` |
+| `resume` | one command, or one sentence naming a command, with no `;`. By outcome: iterate, the next question as a sentence; pivot, the same after the `<docs>/POC.md` edit; `pause <topic>`, `read poc-spec/handoffs/<file>, then <command>`; `pause` with no topic, the next step as a sentence; harden, `/spike-loop:poc-harden`; stop, `none, the PoC is closed`. The command is the next piece of work, never `/clear` or `/spike-loop:poc-help`: those belong in the `Next:` line |
 
 The only path a State line holds is the hand-off file in `resume` and the repo-relative paths in `uncommitted`. Worktree paths are never written.
 
@@ -92,7 +92,7 @@ All read-only, all from the repo root, and every git call as `git --no-optional-
   Exclusions, `poc-spec` layout: `poc-spec` `.claude` `SUMMARY.md`
   Exclusions, root layout: `POC.md` `LOG.md` `SUMMARY.md` `.claude`
 
-  Never `.`: as a pathspec, `:(exclude).` excludes the whole repository, so an older-layout PoC would always read clean. `SUMMARY.md` is excluded because step 6 writes it after the State is gathered. The pathspec is `-- . ":(exclude)<each>"`.
+  Never `.`: as a pathspec, `:(exclude).` excludes the whole repository, so an older-layout PoC would always read clean. `SUMMARY.md` is excluded because the "Pivot, harden, stop" step writes it after the State is gathered. The pathspec is `-- . ":(exclude)<each>"`.
 - **uncommitted.** `status --porcelain -- . <exclusions>`. The path is each line after its first three characters, and the new name for a rename (`old -> new`). Paths are listed in git's order.
 - **unmerged worktrees.** `worktree list --porcelain`. The first entry is always the main checkout, also when the session's root is itself a linked worktree. Consider only entries whose path is under `<main checkout>/.claude/worktrees/`, and not the root's own worktree. For each: its name is the `branch` line without `refs/heads/`, or `detached <short sha>` when the entry says `detached`, the sha from `git --no-optional-locks -C "<worktree path>" rev-parse --short HEAD`. It has commits when `log --oneline <branch or sha> --not HEAD` prints anything (skipped when `at` is `no commits`, where it fails). It has uncommitted changes when `git --no-optional-locks -C "<worktree path>" status --porcelain` prints anything. It is listed when either holds. The worktree path is used to run the check and printed to the user, never written.
 - **waiting on you.** From the conversation, `none` when nothing was said. A process the user says is running is recorded here.
@@ -144,7 +144,7 @@ Reads the last 25 lines of the log as today, and stays read-only (every git call
 | Last entry | Prints | `Next:` |
 |---|---|---|
 | State, fresh | `Resume:` with the `resume:` value. If it names a hand-off file, that file is read first and summarised | The `resume:` command |
-| State, stale | `State is from <entry date>; it may be stale: <what differs>` | iterate, pivot: `/spike-loop:poc-checkpoint <Decision>` to record the state again. pause: the hand-off file named in `resume:`, if any, is still read and summarised, marked as possibly stale, and `Next:` is `/spike-loop:poc-checkpoint pause <topic>` with the topic taken from that file name (the date and any `-2` suffix removed), or `/spike-loop:poc-checkpoint pause` when there is no file. harden, stop: unchanged |
+| State, stale | `State is from <entry date>; it may be stale: <what differs>` | iterate, pivot: `/spike-loop:poc-checkpoint <Decision>` to record the state again. pause: the hand-off file named in `resume:`, if any, is still read and summarised, marked as possibly stale, and `Next:` is `/spike-loop:poc-checkpoint pause <topic>` with the topic taken from that file name without the date (and without a `-<n>` ending only when the file without it also exists), or `/spike-loop:poc-checkpoint pause` when there is no file. harden, stop: unchanged |
 | No State, or a State line with any entry after it | "State unknown" | By the last entry's Decision. iterate, pivot or pause: `/spike-loop:poc-checkpoint <Decision>`. harden, stop, none yet: unchanged |
 
 No row's `Next:` contains `/clear`, so a stale or missing State never leads back to itself.
@@ -181,7 +181,7 @@ The existing notice in `poc-start` step 2 says to keep customer names and deal d
 
 ## Tests
 
-Free, in a new `tests/test_handoff_state.py` plus changes to `tests/test_skills_contract.py`. A substring is not enough for these rules, so each test parses:
+Free, in a new `tests/test_handoff_state.py`. A substring is not enough for these rules, so each test parses:
 
 - **Format agreement.** The State template line and the value table in this spec and in `skills/poc-checkpoint/SKILL.md` agree: the same six field names in the same order, and for each field the same set of fixed values (`detached`, `no commits`, `not a git repo`, `none`, `(uncommitted)`, `detached <short sha>`, `<n> paths:`). The `poc-start` template does not contain a `- State:` line.
 - **Exclusions agree.** The exclusion lists for both layouts are the same in this spec, in `poc-checkpoint` and in `poc-help`, and in `docs/handoff/tools/check_git_rules.py`. Neither list contains `.` on its own.
@@ -207,6 +207,7 @@ Manual and cold-start (paid, single runs, headless): see the plan.
 - **`pause` is a new loop word.** Every reader that maps Decisions needs a rule for it. The outcome-list test above holds the places.
 - **The model may not follow a `resume:` pointer** from the log tail after a clear. The probes measure it, interactively unmeasured.
 - **Branch names and topic names can be descriptive.** `LOG.md` already can hold such text. The rule against customer names in a public repo covers them, and the packager gap above is stated.
+- **Worktrees outside `.claude/worktrees/`.** The Claude Code docs say the Desktop app's `worktree.location` setting (Desktop SSH sessions) can put worktrees elsewhere **(docs, 2026-11-27)**. The State would then miss them.
 - **Interactive behaviour is unmeasured.** Everything measured so far is headless on Claude Code 2.1.325.
 
 ## Future work: a `SessionStart` hook for the staleness check (option C)

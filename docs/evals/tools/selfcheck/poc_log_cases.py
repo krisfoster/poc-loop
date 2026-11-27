@@ -10,7 +10,7 @@ ENTRY = "\n## 2026-11-27 10:00 HMAC known vector\n- Tried: an HMAC known vector\
 def text(n, over, nxt):
     return "Entry appended.\n\nElapsed 2 days of %s, %d %s.%s\n\nNext: %s" % (
         "2 hours" if over else "100000 hours", n, "entry" if n == 1 else "entries",
-        " That is over the timebox; time to decide." if over else "", nxt)
+        "\nThat is over the timebox, decide now: iterate, pivot, harden, stop or pause." if over else "", nxt)
 VERIFY = "keep building and run /spike-loop:poc-verify when there is something to check"
 CHECK = "decide now with /spike-loop:poc-checkpoint <iterate | pivot | harden | stop | pause>"
 good = {"fresh-log": (True, text(1, True, CHECK)), "earlier-entries": (True, text(4, True, CHECK)),

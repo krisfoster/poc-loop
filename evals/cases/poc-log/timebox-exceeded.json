@@ -27,8 +27,9 @@
     {
       "name": "time_check_line_counts_2",
       "type": "final_text_regex",
-      "pattern": "Elapsed .+ of .+, 2 entr(y|ies)\\.",
-      "count": 1
+      "pattern": "^Elapsed [^\\n]+ of [^\\n]+, 2 entr(y|ies)\\.$",
+      "count": 1,
+      "flags": "m"
     },
     {
       "name": "says_over",

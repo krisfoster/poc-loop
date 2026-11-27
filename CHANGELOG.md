@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **`/spike-loop:poc-log` prints its time-check line as written.** The step now says to print `Elapsed <x> of <timebox>, <n> entries.` exactly, with only the values filled in, and to put any comment on the next line. Before, one headless run in 18 rewrote the line in its own words. In 21 runs after the change the wording held in all of them, and one run still added its comment on the same line.
+- **Evals Phase 2 (in progress).** A grader library for the eval harness (`evals/harness/graders.py`), 6 more `poc-log` cases and 23 cases for `poc-start`, `poc-checkpoint` and `poc-verify`, each checked against a hand-made correct result and a planted defect before any live run. Smoke runs only so far. See `evals/README.md`.
+
 ## 0.3.1
 
 - **`/spike-loop:poc-build` no longer guesses which of your commits the worktree has.** The 0.3.0 text said the worktree always branches from the remote default branch, so unpushed commits are never in it. In headless runs that was false in two cases: with no remote, and with `worktree.baseRef` set to `"head"`, the worktree started from your current commit. The command now runs `git log --oneline HEAD --not <branch>` after the build and names the commits on your current branch that the worktree lacks, or says it holds them all. Uncommitted work is never in the worktree. Checked headless, one run each, on Claude Code 2.1.325: no remote, a remote with `worktree.baseRef: "head"`, and a remote without it.

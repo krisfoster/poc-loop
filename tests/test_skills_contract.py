@@ -136,6 +136,13 @@ class SkillsContractTest(unittest.TestCase):
         self.assertIn("unless the brief says not to", line[0])
         self.assertIn("Never commit in the main checkout", line[0])
 
+    def test_poc_log_time_check_line_is_printed_exactly(self):  # docs/evals/findings.md, F2
+        step = next(l for l in read("skills", "poc-log", "SKILL.md").splitlines() if l.startswith("4. Time check"))
+        self.assertIn("Print this line exactly, with only the three values filled in: "
+                      "`Elapsed <x> of <timebox>, <n> entries.`", step)
+        self.assertIn("Put any comment on the next line, never inside it.", step)
+        self.assertNotIn("Print one line:", step)
+
     def test_poc_help_row_for_build_mentions_the_merge(self):
         row = [l for l in read("skills", "poc-help", "SKILL.md").splitlines() if "/spike-loop:poc-build" in l][0]
         self.assertIn("merge its branch", row)

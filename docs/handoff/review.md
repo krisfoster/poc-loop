@@ -1,5 +1,7 @@
 # Review record: hand-off state spec and plan
 
+## First review (R.1)
+
 Independent `reviewer` agent, 2026-11-27, on `docs/handoff/spec.md` and `docs/handoff/plan.md` (spec draft 3). A first run on 2026-11-26 failed with a network error before producing anything. The reviewer was given the files and the question, not the author's conclusions. It edited nothing, ran no model and did not run the test suite. Result: 1 blocker, 10 major, 4 minor.
 
 Before applying, the author re-checked the facts that can be checked locally. In a scratch repository with no commits, `git branch --show-current` prints `main`, while `git rev-parse --abbrev-ref HEAD` and `git rev-parse --short HEAD` fail (finding 1, confirmed). `poc-checkpoint` step 3 already records the confirmed outcome for every outcome (finding 2, confirmed, and the author's draft misread it). `agents/packager.md` step 6 runs `git ls-files` on `poc-spec/POC.md poc-spec/LOG.md` by name only (finding 8, confirmed).
@@ -29,3 +31,31 @@ Claims it checked that changed the text: the pre-0.2.0 wiring was a paraphrase t
 Not checked by the reviewer: where Claude Code puts agent worktrees during a linked-worktree session, whether Grep skips a gitignored file given by explicit path, plugin hook trust prompts, anything needing a paid run.
 
 The author did not re-check the reviewer's claims about the Agent SDK and `initialUserMessage`: they come from docs read by the reviewer and stay marked **(docs)**.
+
+## Second review (R.3)
+
+Independent `reviewer` agent, 2026-11-27, on spec draft 4, the plan and this record. Asked to check that each earlier finding was handled as claimed, then to read the drafts fresh. It edited nothing and ran no model. It ran the test suite (87 pass) and git in scratch repos. Result: of the 15 earlier findings, 9 handled as claimed and 6 partly; new findings 1 blocker, 4 major, 8 minor.
+
+Before applying, the author re-ran findings 1, 2 and 10 locally. In a scratch repo, `git status --porcelain -- . ':(exclude).'` printed nothing with an uncommitted code file, and `git log` with the same pathspec hid a code commit, while excluding `LOG.md` by name showed both (finding 1, confirmed). `poc-checkpoint` step 6 writes `SUMMARY.md` at the root, after step 3 (finding 2, confirmed). `docs/workflow.md:20` says "`/spike-loop:poc-debug` or `/clear`" (finding 10, confirmed).
+
+All findings were then retested free by a new script, `docs/handoff/tools/check_git_rules.py`. It builds a scratch repo for each case, runs the commands the spec names and checks a reference implementation of the State and staleness rules: 41 checks pass on git 2.55.0. To show the checks can fail, 9 mutations each restored an earlier rule (exclude `.`, no `SUMMARY.md`, `.claude/` not excluded from the log, no ancestor check, no count, commits-only worktree check, worktrees from the root instead of the main checkout, the root's own worktree listed, no `--no-optional-locks`), and every one failed at least one check. The first run missed the own-worktree mutation because the test worktree was clean and the check compared whole list items. Both were fixed, and it now fails.
+
+| # | Severity | Finding | Handling | Retest |
+|---|---|---|---|---|
+| 1 | BLOCKER | In the older layout `<docs>` is `.`, and `:(exclude).` excludes everything, so uncommitted is always `none` and no commit counts | Applied. Per-layout exclusion lists by name, never `.` | Script: older-layout cases and the evidence case. Mutation caught. Manual case added to 3.3 |
+| 2 | MAJOR | `SUMMARY.md` is written after State on harden and stop, so the State is stale at once | Applied. `SUMMARY.md` is in both exclusion lists, and the order of work puts `SUMMARY.md` last | Script: both layouts, uncommitted and committed. Mutation caught. Manual case added |
+| 3 | MAJOR | `uncommitted` capped at 5 paths, so the comparison is wrong with more | Applied. `<n> paths: <first 5>, ...`, compared by count plus listed paths. The remaining blind spot is stated | Script: 7 paths, added path, swapped path. Mutation (no count) caught |
+| 4 | MAJOR | Stale `pause` loops back to `resume:`; the wiring route never runs the check | Applied. `poc-help` has a three-row table with no `/clear` in any `Next:`, and stale pause points at the checkpoint. The checkpoint's `Next:` is now `/clear`, then `/spike-loop:poc-help`, so the plugin's own route always runs the check. The wiring route is stated as unchecked in Goals and Risks, and the probes record it | Text. Tests 1.2 and 1.6 and a mutation row hold it |
+| 5 | MAJOR | Worktrees: uncommitted-only not listed, detached has no name, wrong base when the root is a linked worktree, `log --not HEAD` fails with no commits | Applied. Listed when commits or changes, `detached <short sha>`, the main checkout from the first `worktree list` entry, the root's own worktree skipped, commit check skipped with no commits | Script: all four, plus outside-folder and clean worktrees. Two mutations caught |
+| 6 | MINOR | A reset to before the recorded sha reads as fresh | Applied. `merge-base --is-ancestor` first. It also covers a sha that does not exist, so the prefix rule is gone | Script: reset, unknown sha, same commit. Mutation caught |
+| 7 | MINOR | Field values inconsistent (`not a git repo` "for all three", `none` undefined), and 1.1 compares names only | Applied. A value table per field, `not a git repo` for all four git fields, gated on `rev-parse --is-inside-work-tree` (also covers a bare repo). Test 1.1 compares fixed values too | Script: not a repo, no commits, detached, format parse |
+| 8 | MINOR | Test 1.7 "no path" would fail on `resume:` or miss a path mutation | Applied. 1.7 asserts the exact field set and the worktree grammar | Text. Mutation row "add a worktree path" |
+| 9 | MINOR | `.claude/` excluded from status but not from the log comparison | Applied. One exclusion list for every comparison | Script: untracked and committed `.claude/settings.json`. Mutation caught |
+| 10 | MINOR | `docs/workflow.md:20` still offers a bare `/clear` | Applied. Spec "Phase boundaries" names both workflow lines and their new text, plan 2.5 changes them, test 1.2 covers `docs/workflow.md` | Text |
+| 11 | MINOR | No-argument recommendation omits `pause`; write order for the hand-off file; how existence is checked | Applied. Recommendation includes `pause`, an explicit order of work with the file before the entry, the name chosen by Read | Text. Tests 1.3 and 1.4 and a mutation row |
+| 12 | MINOR | P0 called "no model run"; no definition of "uses State"; budget does not add up | Applied. P0 is one cheap run, "uses State" is defined from the event log, budget recounted as 23 runs plus 5 re-runs at a 0.25 USD cap, ceiling about 10 USD | Recount in the plan |
+| 13 | MINOR | `git status` can rewrite `.git/index`, against `poc-help` being read-only (not tested by the reviewer) | Applied. Every State and staleness git call uses `--no-optional-locks` | Script: after a touched file, plain `status` rewrote the index and `--no-optional-locks status` did not. Mutation caught |
+
+Earlier findings marked partly handled (1, 4, 6, 9, 11, 12, 13, 15) are covered by the rows above. Docs claims the reviewer confirmed through Context7 (2026-11-27): the `clear` matcher and `additionalContext`, `initialUserMessage` for `-p` only, hook output dropped on a second `/clear`, `/clear` reloads `CLAUDE.md`, and `conversation_reset` plus `/clear` in streaming input mode. They stay marked **(docs)** in the spec.
+
+Still not checked: anything interactive or under `-p`, whether stream-json accepts `/clear` (P0), plugin hook trust prompts, whether Write refuses to overwrite an unread file (the design no longer relies on it).

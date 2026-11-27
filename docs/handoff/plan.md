@@ -49,7 +49,7 @@ Scratch PoC repos built by a script kept under `docs/handoff/tools/` (no model n
 
 P4b (added after P0 showed `/clear` works headless): the same throwaway plugin with a `clear`-only matcher, `/clear` sent in stream-json. Answers whether the `clear` matcher fires headless. Paid from the re-run allowance.
 
-Result (2026-11-27, 7 runs, about 0.28 USD): gate 0 passes. See `docs/handoff/findings.md`. 4 of the 5 re-runs remain.
+Result (2026-11-27, 7 runs, about 0.28 USD): gate 0 passes. See `docs/handoff/findings.md`. 4 of the 5 re-runs remain. Maintainer decision the same day: ship option A in 0.3.0 with the skipped check as a stated limit, and record the hook as future work.
 
 The staleness check cannot be probed before `poc-help` implements it, so it moves to 3.3. The earlier P3 is dropped.
 
@@ -85,7 +85,7 @@ Run the suite: the new tests fail for the expected reasons, the existing 87 stil
 | 2.3 | `skills/poc-log/SKILL.md`: accept `pause`, no State line, iterate, pivot and pause point at `/spike-loop:poc-checkpoint <outcome>`, no bare `/clear` |
 | 2.4 | `skills/poc-help/SKILL.md`: `pause` row, the three-row table from the spec (fresh, stale, no State or a later entry), the stale-pause topic from the hand-off file name, last-entry State read, the staleness check as in the spec with `--no-optional-locks`, the hand-off read for pause, no fallback, read-only kept, no `/clear` in any `Next:` |
 | 2.5 | `docs/workflow.md`: the four boundaries, `pause`, the manual `/clear` rule, the State line and the route through `poc-help`. Line 20 ("`/spike-loop:poc-debug` or `/clear`") becomes "`/spike-loop:poc-debug`, or `/spike-loop:poc-checkpoint iterate` and then `/clear`", and the tier 2 "`/clear` between passes" becomes "`/spike-loop:poc-checkpoint` between passes" |
-| 2.6 | `README.md` checkpoint row mentions `pause`. `CHANGELOG.md` 0.3.0 entry saying what was tested, what was not (interactive, `clear` matcher, older-than-0.2.0 wiring), and the packager gap for hand-offs. `plugin.json` 0.3.0 |
+| 2.6 | `README.md` checkpoint row mentions `pause`. `CHANGELOG.md` 0.3.0 entry saying what was tested, what was not (interactive, an installed plugin, older-than-0.2.0 wiring), the packager gap for hand-offs, and the known limit that the staleness check runs only through `poc-help` (a hook is possible future work). `plugin.json` 0.3.0 |
 | 2.7 | `docs/layout/spec.md`: its "reserved, written by the hand-off spec" lines point at `docs/handoff/spec.md` |
 
 ## Phase 3: verification
@@ -105,6 +105,10 @@ A case type that runs phase N then a fresh session, graded from files on disk an
 ## Phase 5: release
 
 PR, `reviewer` re-run on the final diff if anything changed after Phase 3, then merge, tag `v0.3.0` (signed, annotated) and release, each only on the maintainer's explicit yes.
+
+## Future work (not in 0.3.0)
+
+- **A `SessionStart` hook that runs the staleness check** (option C). Decided on 2026-11-27 after Phase 0: possible later work, a separate change once 0.3.0 has been used. The reason, what is known and what to settle first are in the spec's "Future work" section. The 0.3.0 changelog names it as a known limit: the check runs only when the user types `poc-help`.
 
 ## Risks to the plan
 

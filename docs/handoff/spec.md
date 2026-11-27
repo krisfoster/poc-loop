@@ -37,7 +37,7 @@ A skill cannot clear context. The docs describe `/clear` only as a user command 
 ## Non-goals
 
 - Clearing context from a skill or a hook. Not documented as possible.
-- A `SessionStart` hook in this change (option C below).
+- A `SessionStart` hook in this change (option C below). It is recorded as future work (see "Future work").
 - Changing what `POC.md` or `SUMMARY.md` contain.
 - Changing the `CLAUDE.md` wiring text that `poc-start` appends. It is carried word for word in three places and checked verbatim by the layout tests, and this design does not need a new sentence in it.
 - Hand-offs for this plugin's own development (the maintainer's `~/claude_work` notes). This spec governs the PoC repos the plugin creates.
@@ -203,6 +203,24 @@ Manual and cold-start (paid, single runs, headless): see the plan.
 - **The model may not follow a `resume:` pointer** from the log tail after a clear. The probes measure it, interactively unmeasured.
 - **Branch names and topic names can be descriptive.** `LOG.md` already can hold such text. The rule against customer names in a public repo covers them, and the packager gap above is stated.
 - **Interactive behaviour is unmeasured.** Everything measured so far is headless on Claude Code 2.1.325.
+
+## Future work: a `SessionStart` hook for the staleness check (option C)
+
+Decided 2026-11-27, after Phase 0: 0.3.0 ships option A, and the 0.3.0 changelog states that the staleness check runs only when the user types `/spike-loop:poc-help`. A hook is possible later work, a separate change (0.4.0 or later), once 0.3.0 has been used.
+
+Why it is worth doing. In every Phase 0 task run the model acted on `resume:` straight from the log and never ran `poc-help`, and the model cannot run it (`disable-model-invocation: true`). So the check the spec relies on is skipped on the route a session actually takes (findings 4).
+
+What is already known (findings P4, P4b, one run each, headless, `--plugin-dir`): a plugin `SessionStart` hook fires on both the `startup` and the `clear` matcher, with no trust prompt, and its stdout reaches the model.
+
+Sketch. A `hooks/hooks.json` entry on `startup|clear` running a small script shipped with the plugin. The script finds the repo root and docs folder, reads the last `LOG.md` entry, and if it has a State line, runs the same comparison as `docs/handoff/tools/check_git_rules.py` and prints one or two lines: the resume command, or "State may be stale: <what differs>, run `/spike-loop:poc-checkpoint <Decision>`". That moves the check from skill prose into code, which the check script already tests.
+
+To settle before building it:
+- Behaviour as an installed plugin (not `--plugin-dir`) and in an interactive session, including any trust or approval prompt.
+- The hook's working directory and `CLAUDE_PROJECT_DIR`, and what it does outside a PoC repo (it must print nothing).
+- Cost and latency at every session start, in every repo, for every user of the plugin.
+- The trust surface: a public plugin that runs a script at every session start. The script must be read-only (`--no-optional-locks`), print no file contents, and never print secrets.
+- Output dropped if `/clear` runs again while the hook is running **(docs)**.
+- Tests: the script shares the reference implementation and its mutation checks, plus a headless cold-start case.
 
 ## Open questions
 

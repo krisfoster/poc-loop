@@ -32,9 +32,9 @@
       "allow_new": false
     },
     {
-      "name": "mentions_git_init",
+      "name": "offers_git_init",
       "type": "final_text_regex",
-      "pattern": "git init",
+      "pattern": "(?i)git init|(create|initiali[sz]e) a (new )?(git )?repo",
       "flags": "",
       "min": 1
     },

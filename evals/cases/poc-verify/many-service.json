@@ -13,6 +13,7 @@
     "Bash(git *)",
     "Bash(cd *)",
     "Bash(./verify.sh)",
+    "Bash(bash verify.sh)",
     "Bash(make *)",
     "Bash(ls *)"
   ],

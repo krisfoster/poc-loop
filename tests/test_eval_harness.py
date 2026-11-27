@@ -208,7 +208,8 @@ class RunnerTests(unittest.TestCase):
         seen = json.loads((Path(r["workspace_kept"]) / "ws" / "seen.json").read_text())
         settings = self.settings_in(seen)
         self.assertTrue(settings["permissions"]["blockReadsOutsideWorkingDirectories"])
-        self.assertNotIn("additionalDirectories", settings["permissions"])
+        # Only the plugin copy is added, so its bundled scripts can run; it holds no .env (see the copy test).
+        self.assertEqual(settings["permissions"]["additionalDirectories"], [str(self.plugin)])
         shutil.rmtree(r["workspace_kept"], ignore_errors=True)
 
     def test_case_can_start_in_a_subdirectory_with_the_root_added(self):
@@ -225,7 +226,7 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(seen_path.is_file(), "the process did not start in sub/deep")
         self.assertFalse((ws / "seen.json").exists())
         settings = self.settings_in(json.loads(seen_path.read_text()))
-        self.assertEqual(settings["permissions"]["additionalDirectories"], [str(ws)])
+        self.assertEqual(settings["permissions"]["additionalDirectories"], [str(self.plugin), str(ws)])
         self.assertTrue(settings["permissions"]["blockReadsOutsideWorkingDirectories"])
         self.assertTrue(r["passed"])  # graders still look at the whole workspace
 
@@ -238,7 +239,10 @@ class RunnerTests(unittest.TestCase):
                             claude_cmd=(sys.executable, str(FAKE)), keep=True)
         self.addCleanup(shutil.rmtree, r["workspace_kept"], True)
         settings = self.settings_in(json.loads((Path(r["workspace_kept"]) / "ws" / "sub" / "deep" / "seen.json").read_text()))
-        self.assertNotIn("additionalDirectories", settings["permissions"])
+        self.assertEqual(settings["permissions"]["additionalDirectories"], [str(self.plugin)])
+
+    def test_plugin_copy_holds_no_secrets_file(self):
+        self.assertEqual([p for p in self.plugin.rglob(".env*")], [])
 
     def test_plugin_copy_has_the_bundled_scripts(self):
         self.assertTrue((self.plugin / "scripts" / "check-prereqs").is_file())
@@ -419,6 +423,17 @@ class CliTests(unittest.TestCase):
         summary = json.loads((Path(out) / "summary.json").read_text())
         self.assertEqual(summary["cases"]["poc-log/basic"]["runs"], 2)  # 0.1 each, 1.5 x 0.25 headroom
         self.assertIn("Not run because a budget cap was reached", buf.getvalue())
+
+    def test_exact_interpreter_grant_is_narrow(self):
+        self.assertEqual(runner.broad_grants(case_from("x", allowed_tools=["Bash(bash verify.sh)"])), [])
+        self.assertTrue(runner.broad_grants(case_from("x", allowed_tools=["Bash(bash *)"])))
+        self.assertTrue(runner.broad_grants(case_from("x", allowed_tools=["Bash(bash verify.sh *)"])))
+
+    def test_long_tool_inputs_keep_the_script_name(self):
+        cmd = 'cd "/private/var/folders/xx/' + "y" * 80 + '/ws" && python3 "/var/folders/xx/' + "z" * 60 + '/plugin/skills/poc-log/scripts/time_check.py" --root x'
+        ev_line = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": cmd}}]}}
+        summary, _ = ev.summarise_events([ev_line])
+        self.assertIn("time_check.py", summary["tool_calls"][0]["input"])
 
     def test_unsandboxed_grants_need_consent(self):
         for tool, broad in (("Bash", True), ("Bash(*)", True), ("Bash(python3 *)", True), ("Bash(sh -c *)", True),

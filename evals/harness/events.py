@@ -61,7 +61,7 @@ def summarise_events(events):
         content = (e.get("message") or {}).get("content") or []
         for item in content if isinstance(content, list) else []:
             if isinstance(item, dict) and item.get("type") == "tool_use":
-                tool_calls.append({"name": item.get("name"), "child": child, "input": _short(item.get("input", {}))})
+                tool_calls.append({"name": item.get("name"), "child": child, "input": _short(item.get("input", {}), 600)})
 
     denials = []
     if final is not None:

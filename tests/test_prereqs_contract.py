@@ -24,14 +24,16 @@ AGENTS = {
 }
 NOT_CHECKED = {"research-protocol": "preloaded into agents, never a command; the researcher agent checks git"}
 
-SKILL_PARA = ('**Prerequisites.** Before anything else, run `%s {cmd} {tools}` and read its output. If the last line '
+SKILL_PARA = ('**Prerequisites.** Before anything else, run `%s {cmd} {tools}` as a command on its own, never joined to '
+              'another with `;` or `&&`, and read its output. If the last line '
               'is `prereqs: missing ...`, print each `MISSING:` line as it is, change nothing, and end with '
               '`Next: install what is missing, then run /spike-loop:{cmd} again`. Print any `skipped:` line and leave '
               'out the step that needs that tool. If the check cannot run (refused, not found, or no POSIX shell), say '
               'so in one line and continue: a command that needs a missing tool will fail with its own error. This '
               'check covers any agent this command starts: when you brief an agent, say "prerequisites checked".') % CHECK
 AGENT_PARA = ('**Prerequisites.** Skip this if the command that started you, or your brief, says prerequisites were '
-              'checked. Otherwise, before anything else, run `%s {cmd} {tools}` and read its output. If the last line '
+              'checked. Otherwise, before anything else, run `%s {cmd} {tools}` as a command on its own, never joined to '
+              'another with `;` or `&&`, and read its output. If the last line '
               'is `prereqs: missing ...`, print each `MISSING:` line as it is, change nothing, and stop, reporting '
               'what is missing. Print any `skipped:` line and leave out the step that needs that tool. If the check '
               'cannot run (refused, not found, or no POSIX shell), say so in one line and continue.') % CHECK
@@ -142,7 +144,7 @@ class PocLogTests(unittest.TestCase):
 
     def test_time_check_runs_the_script(self):
         s = self.step(4)
-        self.assertIn('run `python3 "${CLAUDE_SKILL_DIR}/scripts/time_check.py" --root "<root>" --docs <docs>`', s)
+        self.assertIn('run exactly `python3 "${CLAUDE_SKILL_DIR}/scripts/time_check.py" --root "<root>" --docs <docs>`', s)
         self.assertIn("Print its first line exactly as the script printed it, on a line of its own, and put any "
                       "comment on the next line, never inside it.", s)
         self.assertIn("If its second line is `timebox: over`, say so plainly", s)
@@ -150,6 +152,15 @@ class PocLogTests(unittest.TestCase):
                       "time or count entries yourself.", s)
         self.assertIn("Never write the time line or the reason into `<docs>/LOG.md`.", s)
         self.assertNotIn("compute elapsed", s)
+
+    def test_append_with_edit_then_run_the_script_as_written(self):
+        self.assertIn("append it to the end of `<docs>/LOG.md` with the Edit tool", self.step(3))
+        s = self.step(4)
+        self.assertIn("Otherwise, after the entry is in the file, run exactly", s)
+        self.assertIn("as a command on its own: no `cd` in front, no extra flags, nothing joined to it (it takes the "
+                      "root as an argument).", s)
+        self.assertIn("if the prerequisites check skipped `python3`, do not run the script: print the checker's "
+                      "`skipped:` line as it is, then `Time check: not run (python3 skipped)`.", s)
 
     def test_next_rule_keys_on_the_script(self):
         s = self.step(5)

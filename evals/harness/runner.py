@@ -77,7 +77,8 @@ def broad_grants(case):
         elif base == "Bash":
             inner = t[len("Bash("):].rstrip(")").strip()
             word = inner.split()[0] if inner.split() else ""
-            if word.startswith("*") or word in INTERPRETERS:
+            # An interpreter grant is broad unless it names one exact command (no wildcard anywhere).
+            if word.startswith("*") or (word in INTERPRETERS and "*" in inner):
                 out.append(t)
         elif t.startswith(base + "(*"):
             out.append(t)
@@ -217,8 +218,11 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
         make_workspace(Path(fixtures_dir) / case.fixture, ws, case.git, home)
         run_cwd = ws / case.cwd  # the session starts here, the diff and the graders still look at the whole workspace
         settings = copy.deepcopy(SETTINGS)
+        # The plugin copy holds only plugin files (no .env), and its bundled scripts must be runnable even
+        # though reads outside the working directory are blocked.
+        settings["permissions"]["additionalDirectories"] = [str(plugin_dir)]
         if case.add_root_dir:
-            settings["permissions"]["additionalDirectories"] = [str(ws)]
+            settings["permissions"]["additionalDirectories"].append(str(ws))
         before = snapshot(ws)
         cmd = list(claude_cmd) + [
             "-p", case.prompt, "--plugin-dir", str(plugin_dir),

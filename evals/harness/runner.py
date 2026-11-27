@@ -22,10 +22,11 @@ from typing import Dict, List, Optional
 
 from . import events as ev
 from . import graders as graders_mod
+from . import hidepath
 from .cases import Case
 
 TOKEN_VAR = "SPIKE_EVALS_OAUTH_TOKEN"
-PLUGIN_DIRS = (".claude-plugin", "agents", "skills", "commands", "hooks", "assets")
+PLUGIN_DIRS = (".claude-plugin", "agents", "skills", "commands", "hooks", "assets", "scripts")
 SNAPSHOT_SKIP = (".git", ".claude")  # runs create .claude (project config, worktrees); not part of the diff
 BROAD_TOOLS = ("Bash", "WebFetch", "WebSearch")
 # A Bash pattern that starts with one of these runs arbitrary code, whatever follows it.
@@ -224,9 +225,15 @@ def run_once(case, run_index, repo_root, plugin_dir, token, out_dir, fixtures_di
             "--settings", json.dumps(settings),
             "--allowedTools"] + list(case.allowed_tools) + [
             "--output-format", "stream-json", "--verbose", "--max-budget-usd", str(case.max_cost_usd)]
+        env = isolated_env(home, token)
+        if case.hide_tools:
+            # Resolve the CLI on the real PATH first, then give the session a PATH without the hidden tools.
+            cmd[0] = shutil.which(cmd[0]) or cmd[0]
+            env["PATH"] = hidepath.hidden_path(str(home / "bin"), case.hide_tools)
+            result["hidden_tools"] = list(case.hide_tools)
         stdout, stderr, code, timed_out = "", "", None, False
         try:
-            proc = subprocess.run(cmd, cwd=str(run_cwd), env=isolated_env(home, token), capture_output=True,
+            proc = subprocess.run(cmd, cwd=str(run_cwd), env=env, capture_output=True,
                                   text=True, timeout=case.timeout_s)
             stdout, stderr, code = proc.stdout, proc.stderr, proc.returncode
         except subprocess.TimeoutExpired as exc:

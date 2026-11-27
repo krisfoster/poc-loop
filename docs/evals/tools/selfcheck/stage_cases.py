@@ -61,6 +61,10 @@ G = {  # case: (good builder -> (final, events), bad builder -> (final, events),
                             lambda ws: ((ws / "poc-spec/POC.md").write_text("new"), ("Overwrote it.", ""))[1], "overwrites"),
  "poc-start/no-git-repo": (lambda ws: ("No git repo. I can run git init but cannot ask.\nNext: run git init or answer", ""),
                            lambda ws: ((ws / ".git").mkdir(), ("Ran git init.\nNext: x", ""))[1], "runs git init"),
+ "poc-start/missing-git": (lambda ws: ("MISSING: git is needed by /spike-loop:poc-start for finding the repo root and reading its state. Install it (...), then run the command again.\nprereqs: missing git\n\nNext: install what is missing, then run /spike-loop:poc-start again", ""),
+                           lambda ws: ("git is missing, so I wrote the files without it.\nNext: install what is missing, then run /spike-loop:poc-start again", ""), "paraphrases the message"),
+ "poc-sources/missing-python": (lambda ws: ("MISSING: python3 3.9 or later is needed by /spike-loop:poc-sources for the research sources helper. Install it (...), then run the command again.\n\nNext: install what is missing, then run /spike-loop:poc-sources again", ""),
+                                lambda ws: ("MISSING: python3 3.9 or later is needed by /spike-loop:poc-sources for the research sources helper.\n\nNext: install what is missing, then run /spike-loop:poc-sources again", ""), "runs python anyway"),
  "poc-checkpoint/iterate": (lambda ws: (closing(ws, "poc-spec", "iterate", "check whether the header is hex or base64 with /spike-loop:poc-research"), (CLEAR, ""))[1],
                             lambda ws: (closing(ws, "poc-spec", "iterate", "/clear"), (CLEAR, ""))[1], "resume is /clear"),
  "poc-checkpoint/pivot": (lambda ws: (closing(ws, "poc-spec", "pivot", "edit the assumptions then build"), (CLEAR, ""))[1],
@@ -92,7 +96,12 @@ G = {  # case: (good builder -> (final, events), bad builder -> (final, events),
                              lambda ws: ((ws / "greeting.txt").write_text("x"), ("VERDICT: PARTIAL", ""))[1], "writes a file"),
 }
 # a correct Bash call for makefile-only's tool_call_count
-TOOLS = {"poc-verify/makefile-only": [{"name": "Bash", "child": True}]}
+CHECK = lambda cmd, tools: {"name": "Bash", "child": False, "input": '{"command": "sh \\"/p/scripts/check-prereqs\\" %s %s"}' % (cmd, tools)}
+TOOLS = {"poc-verify/makefile-only": [{"name": "Bash", "child": True}],
+         "poc-start/missing-git": [CHECK("poc-start", "git")],
+         "poc-sources/missing-python": [CHECK("poc-sources", "python3")]}
+# The bad result for poc-sources runs python anyway: its tool calls get a python3 call.
+BAD_TOOLS = {"poc-sources/missing-python": [CHECK("poc-sources", "python3"), {"name": "Bash", "child": False, "input": '{"command": "python3 /p/spike_sources.py status"}'}]}
 cs = {c.name: c for c in cases.load_cases("evals/cases", "evals/fixtures")}
 rc = 0
 for name, (good, bad, label) in G.items():
@@ -103,7 +112,7 @@ for name, (good, bad, label) in G.items():
         before = runner.snapshot(ws)
         final, events = fn(ws)
         ctx = {"workspace": ws, "fixture": Path("evals/fixtures") / c.fixture, "before": before, "after": runner.snapshot(ws),
-               "summary": {"final_text": final, "tool_calls": TOOLS.get(name, []), "permission_denials": []}, "events_text": events}
+               "summary": {"final_text": final, "tool_calls": (BAD_TOOLS if kind == "bad" else {}).get(name, TOOLS.get(name, [])), "permission_denials": []}, "events_text": events}
         res = graders.run_graders(c.graders, ctx)
         ok = all(r["passed"] for r in res)
         right = ok == (kind == "good")

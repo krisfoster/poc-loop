@@ -12,7 +12,7 @@ MIN_RUN_CAP_USD = 0.10  # a first turn alone costs about $0.03, see docs/evals/s
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 ALLOWED_KEYS = {
     "id", "stage", "set", "n_runs", "prompt", "fixture", "allowed_tools", "timeout_s",
-    "max_cost_usd", "graders", "git", "description", "cwd", "add_root_dir",
+    "max_cost_usd", "graders", "git", "description", "cwd", "add_root_dir", "hide_tools",
 }
 REQUIRED_KEYS = ["id", "stage", "set", "prompt", "fixture", "allowed_tools", "graders"]
 
@@ -36,6 +36,7 @@ class Case:
     git: bool = True
     cwd: str = "."  # where the session starts, relative to the workspace root (a subdirectory of the fixture)
     add_root_dir: bool = False  # add the workspace root as an additional directory, like /add-dir in a session
+    hide_tools: List[str] = field(default_factory=list)  # tools left off the session's PATH (harness/hidepath.py)
     description: str = ""
     source: str = field(default="", compare=False)
 
@@ -86,6 +87,9 @@ def validate(raw, path, fixtures_dir=None):
            "must be a number of at least %.2f (smaller caps stop a run on its first turn)" % MIN_RUN_CAP_USD, errors)
     _check(path, "git", isinstance(raw.get("git", True), bool), "must be true or false", errors)
     _check(path, "add_root_dir", isinstance(raw.get("add_root_dir", False), bool), "must be true or false", errors)
+    hide = raw.get("hide_tools", [])
+    _check(path, "hide_tools", isinstance(hide, list) and all(isinstance(t, str) and t and "/" not in t for t in hide),
+           "must be a list of tool names (no paths)", errors)
     cwd = raw.get("cwd", ".")
     if _check(path, "cwd", isinstance(cwd, str) and cwd.strip() != "", "must be a relative directory name", errors):
         parts = Path(cwd).parts
@@ -115,7 +119,8 @@ def validate(raw, path, fixtures_dir=None):
         id=raw["id"], stage=raw["stage"], set=raw["set"], prompt=raw["prompt"], fixture=raw["fixture"],
         allowed_tools=list(tools), graders=list(specs), n_runs=n_runs, timeout_s=timeout,
         max_cost_usd=float(cap), git=raw.get("git", True), cwd=str(Path(cwd)) if cwd != "." else ".",
-        add_root_dir=raw.get("add_root_dir", False), description=raw.get("description", ""), source=str(path),
+        add_root_dir=raw.get("add_root_dir", False), hide_tools=list(raw.get("hide_tools", [])),
+        description=raw.get("description", ""), source=str(path),
     ), []
 
 

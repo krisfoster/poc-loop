@@ -1,0 +1,89 @@
+{
+  "id": "missing-python",
+  "stage": "poc-log",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "python3 hidden: python3 is optional for poc-log, so the entry is still appended, the skipped line is printed, the time check is reported as not run, and no time is worked out by hand",
+  "prompt": "/spike-loop:poc-log Tried an HMAC known vector. Learned the signature matches. Dead ends: none. Decision: none yet.",
+  "fixture": "poc-log-specs",
+  "allowed_tools": [
+    "Read",
+    "Edit",
+    "Write",
+    "Bash(date *)",
+    "Bash(git *)"
+  ],
+  "timeout_s": 240,
+  "max_cost_usd": 0.25,
+  "hide_tools": [
+    "python3"
+  ],
+  "graders": [
+    {
+      "name": "dated_entries",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "^## \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2} ",
+      "flags": "m",
+      "count": 2
+    },
+    {
+      "name": "earlier_entries_byte_identical",
+      "type": "file_prefix_unchanged",
+      "path": "poc-spec/LOG.md"
+    },
+    {
+      "name": "says_python_skipped",
+      "type": "final_text_regex",
+      "pattern": "skipped: python3 is not installed",
+      "min": 1
+    },
+    {
+      "name": "time_check_not_run",
+      "type": "final_text_regex",
+      "pattern": "Time check: not run",
+      "min": 1
+    },
+    {
+      "name": "no_elapsed_line",
+      "type": "final_text_regex",
+      "pattern": "(?i)elapsed",
+      "count": 0
+    },
+    {
+      "name": "nothing_about_time_in_the_log",
+      "type": "file_regex",
+      "path": "poc-spec/LOG.md",
+      "pattern": "(?i)elapsed|time check",
+      "count": 0
+    },
+    {
+      "name": "ran_the_prereq_check",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "check-prereqs",
+      "min": 1
+    },
+    {
+      "name": "never_ran_python",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "(\"command\": \"|&&\\s*|;\\s*|\\|\\s*)(\\S*/)?python3?(\\.\\d+)?[\\s\"]",
+      "count": 0
+    },
+    {
+      "name": "next_is_verify",
+      "type": "final_text_regex",
+      "pattern": "^Next: .*?/spike-loop:poc-verify",
+      "flags": "m",
+      "min": 1
+    },
+    {
+      "name": "only_the_log_changed",
+      "type": "no_tracked_file_modified",
+      "except": [
+        "poc-spec/LOG.md"
+      ]
+    }
+  ]
+}

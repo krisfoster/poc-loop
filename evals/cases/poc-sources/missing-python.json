@@ -1,0 +1,53 @@
+{
+  "id": "missing-python",
+  "stage": "poc-sources",
+  "set": "tune",
+  "n_runs": 3,
+  "description": "python3 hidden: poc-sources needs it for its whole job, so it stops with the registry message and the install Next line, and writes nothing",
+  "prompt": "/spike-loop:poc-sources status",
+  "fixture": "poc-log-empty",
+  "allowed_tools": [
+    "Read",
+    "Glob",
+    "Grep"
+  ],
+  "timeout_s": 240,
+  "max_cost_usd": 0.5,
+  "hide_tools": [
+    "python3"
+  ],
+  "graders": [
+    {
+      "name": "missing_message",
+      "type": "final_text_regex",
+      "pattern": "MISSING: python3 3\\.9 or later is needed by /spike-loop:poc-sources",
+      "min": 1
+    },
+    {
+      "name": "install_next_line",
+      "type": "final_text_regex",
+      "pattern": "^Next: install what is missing, then run /spike-loop:poc-sources again",
+      "flags": "m",
+      "min": 1
+    },
+    {
+      "name": "ran_the_prereq_check",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "check-prereqs",
+      "min": 1
+    },
+    {
+      "name": "never_ran_python",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "(\"command\": \"|&&\\s*|;\\s*|\\|\\s*)(\\S*/)?python3?(\\.\\d+)?[\\s\"]",
+      "count": 0
+    },
+    {
+      "name": "nothing_written",
+      "type": "no_tracked_file_modified",
+      "allow_new": false
+    }
+  ]
+}

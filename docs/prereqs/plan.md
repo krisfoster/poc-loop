@@ -39,7 +39,7 @@ Probe scripts go in `docs/prereqs/tools/probes/`, reusing `docs/layout/tools/pro
 | 3.4 | Mutation rows (spec, Tests 4) in `docs/handoff/tools/mutate.py`; stale rows that quote the old `poc-log` text updated | Every row caught, negative control passes |
 | 3.5 | `docs/evals/findings.md` F2 and F3: note that both move to the script | Text only |
 
-## Phase 4: eval support (free)
+## Phase 4: eval support (free). Done 2026-11-27. Found and fixed: the eval plugin copy left out `scripts/`. `poc-research/missing-python` became `poc-sources/missing-python` (python3 is optional for `poc-research` now)
 
 | ID | Task | Acceptance |
 |---|---|---|

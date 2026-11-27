@@ -230,6 +230,14 @@ class EventGraderTests(Base):
         self.assertTrue(self.grade({"type": "tool_call_count", "tool": "*", "max": 3}))
         self.assertFalse(self.grade({"type": "tool_call_count", "tool": "*", "max": 2}))
 
+    def test_tool_call_count_input_regex(self):
+        self.summary["tool_calls"] = [{"name": "Bash", "child": False, "input": '{"command": "sh \\"/p/scripts/check-prereqs\\" poc-log git"}'},
+                                      {"name": "Bash", "child": False, "input": '{"command": "date"}'}]
+        spec = {"type": "tool_call_count", "tool": "Bash", "input_regex": "check-prereqs", "min": 1, "max": 1}
+        self.assertTrue(self.grade(spec))
+        self.assertFalse(self.grade(dict(spec, input_regex="time_check")))
+        self.assertTrue(self.grade({"type": "tool_call_count", "tool": "Bash", "input_regex": "/usr/bin/python", "count": 0}))
+
     def test_canary_absent(self):
         canary = "canary-7f3a9c"
         self.write(".env", "TOKEN=%s\n" % canary)
@@ -349,6 +357,21 @@ class CaseSelfCheckTests(unittest.TestCase):
             r = subprocess.run([sys.executable, str(root / "docs/evals/tools/selfcheck" / script)], cwd=str(root),
                                capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stdout[-2000:] + r.stderr[-2000:])
+
+    def test_every_case_is_self_checked(self):
+        root = HERE.parent
+        text = "".join((root / "docs/evals/tools/selfcheck" / f).read_text() for f in ("poc_log_cases.py", "stage_cases.py"))
+        before_phase_2 = {"poc-log/basic", "poc-log/both-layouts", "poc-log/poc-spec-layout", "poc-log/subdir-root-added",
+                          "poc-log/subdir-root-not-added"}
+        missing = []
+        for p in sorted((EVALS / "cases").glob("*/*.json")):
+            name = "%s/%s" % (p.parent.name, p.stem)
+            if name in before_phase_2:
+                continue
+            key = '"%s"' % (p.stem if p.parent.name == "poc-log" else name)
+            if key not in text:
+                missing.append(name)
+        self.assertEqual(missing, [])
 
 
 if __name__ == "__main__":

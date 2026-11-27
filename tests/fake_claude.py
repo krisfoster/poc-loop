@@ -7,6 +7,7 @@ into files in its working directory so the tests can check isolation.
 """
 import json
 import os
+import shutil
 import sys
 import time
 
@@ -27,6 +28,9 @@ def main():
         "home": os.environ.get("HOME"),
         "has_oauth_token": bool(os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")),
         "plugin_top_level": sorted(os.listdir(plugin_dir)) if plugin_dir and os.path.isdir(plugin_dir) else [],
+        "python3_found": shutil.which("python3") is not None,
+        "python_found": shutil.which("python") is not None,
+        "git_found": shutil.which("git") is not None,
     }
     with open("seen.json", "w") as f:
         json.dump(seen, f)

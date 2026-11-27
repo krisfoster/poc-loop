@@ -27,7 +27,7 @@
     {
       "name": "time_check_line_counts_2",
       "type": "final_text_regex",
-      "pattern": "^Elapsed [^\\n]+ of [^\\n]+, 2 entr(y|ies)\\.$",
+      "pattern": "^Elapsed (\\d+h \\d+m|\\d+m) of 2 hours, 2 entries\\.$",
       "count": 1,
       "flags": "m"
     },
@@ -66,6 +66,20 @@
       "type": "final_text_regex",
       "pattern": "^Next: ",
       "flags": "m",
+      "min": 1
+    },
+    {
+      "name": "ran_the_prereq_check",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "check-prereqs",
+      "min": 1
+    },
+    {
+      "name": "ran_the_time_check_script",
+      "type": "tool_call_count",
+      "tool": "Bash",
+      "input_regex": "time_check\\.py",
       "min": 1
     }
   ]

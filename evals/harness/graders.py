@@ -301,11 +301,14 @@ def tool_not_used(ctx, spec):
 @grader("tool_call_count", required=["tool"])
 def tool_call_count(ctx, spec):
     """Calls of a tool ('*' for any) from the event log, including subagent calls unless
-    include_child is false."""
+    include_child is false, and only those whose (shortened) input matches input_regex if given."""
     calls = ctx["summary"].get("tool_calls", [])
     if not spec.get("include_child", True):
         calls = [c for c in calls if not c.get("child")]
-    n = len([c for c in calls if spec["tool"] == "*" or c.get("name") == spec["tool"]])
+    calls = [c for c in calls if spec["tool"] == "*" or c.get("name") == spec["tool"]]
+    if "input_regex" in spec:
+        calls = [c for c in calls if re.search(spec["input_regex"], c.get("input") or "")]
+    n = len(calls)
     ok, want = _count_ok(n, spec, default_min=0)
     return ok, "%s called %d times (expected %s)" % (spec["tool"], n, want)
 

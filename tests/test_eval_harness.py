@@ -240,6 +240,37 @@ class RunnerTests(unittest.TestCase):
         settings = self.settings_in(json.loads((Path(r["workspace_kept"]) / "ws" / "sub" / "deep" / "seen.json").read_text()))
         self.assertNotIn("additionalDirectories", settings["permissions"])
 
+    def test_plugin_copy_has_the_bundled_scripts(self):
+        self.assertTrue((self.plugin / "scripts" / "check-prereqs").is_file())
+        self.assertTrue((self.plugin / "skills" / "poc-log" / "scripts" / "time_check.py").is_file())
+
+    def run_seen(self, **over):
+        case = case_from("MODE:ok", **over)
+        out = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, str(out), True)
+        r = runner.run_once(case, 1, ROOT, self.plugin, "dummy-token", out, EVALS / "fixtures",
+                            claude_cmd=(sys.executable, str(FAKE)), keep=True)
+        self.addCleanup(shutil.rmtree, r["workspace_kept"], True)
+        return r, json.loads((Path(r["workspace_kept"]) / "ws" / "seen.json").read_text())
+
+    @unittest.skipUnless(shutil.which("python3"), "python3 needed")
+    def test_hide_tools_takes_the_tool_off_path(self):
+        r, seen = self.run_seen()
+        self.assertTrue(seen["python3_found"])
+        r, seen = self.run_seen(hide_tools=["python3"])
+        self.assertEqual(r["status"], "ok", r.get("reason"))
+        self.assertFalse(seen["python3_found"])
+        self.assertFalse(seen["python_found"])
+        self.assertTrue(seen["git_found"])
+        self.assertEqual(r["hidden_tools"], ["python3"])
+
+    def test_hide_tools_is_validated(self):
+        for bad in ("python3", [""], ["a/b"], [3]):
+            raw = dict(GOOD, hide_tools=bad)
+            case, errs = cases_mod.validate(raw, str(EVALS / "cases" / "poc-log" / "basic.json"), EVALS / "fixtures")
+            self.assertIsNone(case, bad)
+            self.assertTrue(any("hide_tools" in e for e in errs), errs)
+
     def test_plugin_copy_has_only_plugin_dirs(self):
         top = {p.name for p in self.plugin.iterdir()}
         self.assertIn("skills", top)

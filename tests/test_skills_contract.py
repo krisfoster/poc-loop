@@ -104,6 +104,11 @@ class SkillsContractTest(unittest.TestCase):
         self.assertIn("origin/<default>", step3)     # the base, per the docs
         self.assertIn("worktree.baseRef", step3)
         self.assertIn("Do not merge, cherry-pick or copy it", step3)
+        # F1 follow-up (2026-11-27, headless): with no remote, or with worktree.baseRef "head", the worktree
+        # started from the local HEAD, so the base must be checked, not stated as fixed.
+        self.assertIn('`git -C "<main root>" log --oneline HEAD --not <branch>`', step3)
+        self.assertIn("with no remote it starts from your current commit", step3)
+        self.assertNotIn("so unpushed commits and uncommitted work are not in it", step3)
         nxt = [l for l in text.splitlines() if l.startswith("End with one line starting `Next:`")]
         self.assertEqual(len(nxt), 1)
         self.assertIn("`git merge <branch>`", nxt[0])
@@ -119,6 +124,17 @@ class SkillsContractTest(unittest.TestCase):
                 self.assertNotIn("worktree", text.split("---")[1], name)
                 self.assertNotIn("isolation: worktree", read("agents", agent + ".md"),
                                  "%s forks %s, which sets isolation that a fork does not apply" % (name, agent))
+
+    def test_implementer_commits_in_its_worktree(self):
+        # F1 follow-up: the commit rule lives in the agent too, not only in poc-build's brief, so a direct
+        # Agent-tool call (or a brief that forgets it) still leaves the change committed on the worktree branch.
+        rules = read("agents", "implementer.md").split("## Rules", 1)[1].split("\n\n", 1)[0]
+        line = [l for l in rules.splitlines() if re.search(r"(?i)\bcommit\b", l)]
+        self.assertEqual(len(line), 1, "one commit rule under ## Rules")
+        self.assertIn("in the worktree you start in", line[0])
+        self.assertIn("when the done condition is met", line[0])
+        self.assertIn("unless the brief says not to", line[0])
+        self.assertIn("Never commit in the main checkout", line[0])
 
     def test_poc_help_row_for_build_mentions_the_merge(self):
         row = [l for l in read("skills", "poc-help", "SKILL.md").splitlines() if "/spike-loop:poc-build" in l][0]

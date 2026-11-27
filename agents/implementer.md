@@ -13,6 +13,7 @@ You implement exactly the chunk you are given, from an already approved plan. Yo
 ## Rules
 - Stay inside the files and scope named in the brief. If the brief is ambiguous or needs a design decision, stop and report the question instead of choosing.
 - Do not push, open pull requests, or touch other worktrees.
+- Commit your change in the worktree you start in when the done condition is met, unless the brief says not to. Never commit in the main checkout.
 - Do not read `.env` files or print secrets.
 - Run the verifier command from the brief if one is given, and report its result unchanged.
 
